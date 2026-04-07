@@ -279,8 +279,10 @@ function normalizeCase(caseId: string): RuntimeGameCase {
   const fallback = gameCases[DEFAULT_CASE_ID];
   const source = gameCases[caseId] ?? fallback;
 
-  const sourceWithOptionalMacro = source as typeof source & {
+  const sourceWithOptionalFields = source as typeof source & {
     macroQuestion?: string;
+    timeLimitSeconds?: number;
+    hints?: string[];
   };
 
   return {
@@ -289,10 +291,11 @@ function normalizeCase(caseId: string): RuntimeGameCase {
     description: source.description,
     theme: source.theme,
     macroQuestion:
-      sourceWithOptionalMacro.macroQuestion ??
+      sourceWithOptionalFields.macroQuestion ??
       "Hvordan bør økonomisk politik reagere i denne situation? Brug makroøkonomisk teori og forklar konsekvenserne for inflation, vækst, arbejdsløshed, tillid og offentlige finanser.",
-    timeLimitSeconds: source.timeLimitSeconds ?? DEFAULT_CASE_TIME,
-    hints: source.hints ?? [],
+    timeLimitSeconds:
+      sourceWithOptionalFields.timeLimitSeconds ?? DEFAULT_CASE_TIME,
+    hints: sourceWithOptionalFields.hints ?? [],
     difficulty: CASE_DIFFICULTY[source.id] ?? "hard",
     options: [
       {
