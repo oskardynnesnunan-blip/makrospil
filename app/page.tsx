@@ -81,9 +81,8 @@ export default function HomePage() {
               <div className="text-slate-300">180 minutter</div>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <div className="text-amber-300 font-semibold mb-1">Tid pr. case</div>
-              <div className="text-slate-300">3 minutter</div>
-            </div>
+<div className="text-amber-300 font-semibold mb-1">Tid pr. runde</div>
+<div className="text-slate-300">8 min</div>            </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
               <div className="text-amber-300 font-semibold mb-1">Mål</div>
               <div className="text-slate-300">Vind over de andre hold</div>

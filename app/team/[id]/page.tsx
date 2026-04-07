@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { gameCases } from "@/app/data/cases";
 
 type Crisis = {
   id: string;
@@ -33,21 +34,25 @@ type SurpriseEvent = {
   effect: string;
 };
 
-type Option = {
+type RuntimeOption = {
   id: string;
   title: string;
   text: string;
   next: string;
   hiddenPoints: number;
+  feedback: string;
 };
 
-type GameCase = {
+type RuntimeGameCase = {
   id: string;
   title: string;
   description: string;
   theme: string;
+  macroQuestion: string;
+  timeLimitSeconds: number;
+  hints: string[];
   difficulty: "medium" | "hard" | "very hard";
-  options: Option[];
+  options: RuntimeOption[];
   isNewsCase?: boolean;
 };
 
@@ -81,7 +86,8 @@ type TeamSetup = {
   startedAt: string;
 };
 
-const TOTAL_ROUNDS = 60;
+const TOTAL_ROUNDS = 22;
+const INTRO_MINUTES = 4;
 
 const crises: Crisis[] = [
   {
@@ -197,454 +203,132 @@ const initialOpponents = [
   { name: "Norden", score: 0, lastAction: "Ikke startet" },
 ];
 
-const baseCases: Record<string, GameCase> = {
-  intro_inflation: {
-    id: "intro_inflation",
-    title: "Inflationen bider stadig",
-    description:
-      "Inflationen er ikke under kontrol, men væksten er samtidig svag. Hvis I strammer for hårdt, risikerer I arbejdsløshed. Hvis I er for bløde, risikerer I at miste troværdighed. Hvad gør I?",
-    theme: "inflation",
-    difficulty: "medium",
-    options: [
-      {
-        id: "raise_rates",
-        title: "Hæv renten tydeligt",
-        text: "Dæmp inflationen og signalér disciplin, men risiko for lavere vækst og højere arbejdsløshed.",
-        next: "labor_pressure",
-        hiddenPoints: 8,
-      },
-      {
-        id: "hold_rates",
-        title: "Hold renten og afvent data",
-        text: "Undgå overreaktion, men risiko for at inflationen bider sig fast og markedet mister tillid.",
-        next: "market_panic",
-        hiddenPoints: 6,
-      },
-      {
-        id: "targeted_support",
-        title: "Målrettet finanspolitisk støtte",
-        text: "Skærm udsatte grupper uden at stimulere alt for bredt, men det presser budgettet.",
-        next: "budget_strain",
-        hiddenPoints: 7,
-      },
-      {
-        id: "broad_stimulus",
-        title: "Bred vækstpakke",
-        text: "Beskyt aktivitet og jobs hurtigt, men risiko for mere inflation, større gæld og tab af troværdighed.",
-        next: "debt_doubt",
-        hiddenPoints: 4,
-      },
-    ],
-  },
+const CASE_POINTS: Record<string, { optionA: number; optionB: number }> = {
+  intro_inflation: { optionA: 8, optionB: 6 },
+  labor_pressure: { optionA: 7, optionB: 8 },
+  debt_doubt: { optionA: 9, optionB: 4 },
+  budget_strain: { optionA: 8, optionB: 4 },
+  social_unrest: { optionA: 7, optionB: 6 },
+  growth_slump: { optionA: 9, optionB: 6 },
+  market_panic: { optionA: 9, optionB: 4 },
+  election_pressure: { optionA: 4, optionB: 9 },
+  bond_selloff: { optionA: 8, optionB: 6 },
+  energy_shock: { optionA: 7, optionB: 5 },
+  trade_break: { optionA: 5, optionB: 9 },
+  bank_stress: { optionA: 8, optionB: 4 },
+  climate_damage: { optionA: 6, optionB: 9 },
+  currency_slide: { optionA: 8, optionB: 5 },
+  global_crisis: { optionA: 10, optionB: 4 },
+};
 
-  labor_pressure: {
-    id: "labor_pressure",
-    title: "Arbejdsløsheden stiger hurtigere end ventet",
-    description:
-      "Jeres tidligere linje har dæmpet prispresset, men flere virksomheder fyrer. Nu er dilemmaet ikke længere kun inflation mod vækst, men også social stabilitet mod troværdighed.",
-    theme: "arbejdsmarked",
-    difficulty: "hard",
-    options: [
-      {
-        id: "help_business",
-        title: "Hjælp udsatte virksomheder midlertidigt",
-        text: "Beskyt arbejdspladser, men øg presset på budgettet og risikoen for at støtte ineffektive virksomheder.",
-        next: "budget_strain",
-        hiddenPoints: 7,
-      },
-      {
-        id: "stay_hard",
-        title: "Fasthold den stramme linje",
-        text: "Hold inflationen nede og beskyt troværdigheden, men risiko for social uro og politisk modstand.",
-        next: "social_unrest",
-        hiddenPoints: 8,
-      },
-      {
-        id: "retrain_workers",
-        title: "Invester i omskoling og arbejdsudbud",
-        text: "Tænk strukturelt og langsigtet, men effekten kommer langsomt.",
-        next: "growth_slump",
-        hiddenPoints: 9,
-      },
-      {
-        id: "cut_taxes",
-        title: "Sænk skatter på arbejde",
-        text: "Styrk incitament og aktivitet, men mist skatteindtægter og risikér skæv effekt.",
-        next: "election_pressure",
-        hiddenPoints: 6,
-      },
-    ],
-  },
-
-  debt_doubt: {
-    id: "debt_doubt",
-    title: "Markederne tvivler på jeres gældskontrol",
-    description:
-      "Jeres hjælpepakker har understøttet aktiviteten, men markederne stiller nu spørgsmål ved, hvor længe staten kan fortsætte uden at miste tillid.",
-    theme: "gæld",
-    difficulty: "hard",
-    options: [
-      {
-        id: "save_plan",
-        title: "Fremlæg en troværdig spareplan",
-        text: "Signalér disciplin og holdbarhed, men risiko for lavere vækst på kort sigt.",
-        next: "growth_slump",
-        hiddenPoints: 9,
-      },
-      {
-        id: "continue_support",
-        title: "Fortsæt støtten lidt endnu",
-        text: "Beskyt økonomien nu, men risiko for større gæld og lavere troværdighed.",
-        next: "market_panic",
-        hiddenPoints: 4,
-      },
-      {
-        id: "reform_state",
-        title: "Gennemfør svære strukturreformer",
-        text: "Løft langsigtet holdbarhed og produktivitet, men skab kortsigtet modstand.",
-        next: "market_panic",
-        hiddenPoints: 10,
-      },
-      {
-        id: "sell_assets",
-        title: "Sælg aktiver for at købe tid",
-        text: "Skaf luft nu, men uden at løse de dybere problemer.",
-        next: "market_panic",
-        hiddenPoints: 5,
-      },
-    ],
-  },
-
-  budget_strain: {
-    id: "budget_strain",
-    title: "Budgettet er under hårdt pres",
-    description:
-      "Støtteordninger og højere udgifter får finansministeriet til at advare. Det næste valg handler ikke kun om økonomi, men også om politisk bæredygtighed.",
-    theme: "finanspolitik",
-    difficulty: "hard",
-    options: [
-      {
-        id: "cut_spending",
-        title: "Skær i udgifterne nu",
-        text: "Vis ansvarlighed og ro markedet, men risiko for politisk modstand og lavere aktivitet.",
-        next: "market_panic",
-        hiddenPoints: 8,
-      },
-      {
-        id: "borrow_more",
-        title: "Lån mere og køb tid",
-        text: "Hold hånden under økonomien nu, men gør staten mere sårbar senere.",
-        next: "market_panic",
-        hiddenPoints: 4,
-      },
-      {
-        id: "raise_taxes",
-        title: "Hæv udvalgte skatter",
-        text: "Forbedr budgettet, men svæk efterspørgslen og risikér politisk modstand.",
-        next: "labor_pressure",
-        hiddenPoints: 7,
-      },
-      {
-        id: "freeze_wages",
-        title: "Hold igen med offentlige lønninger",
-        text: "Dæmp udgifterne, men øg risikoen for konflikt og lavere motivation.",
-        next: "labor_pressure",
-        hiddenPoints: 6,
-      },
-    ],
-  },
-
-  market_panic: {
-    id: "market_panic",
-    title: "Markederne bliver nervøse",
-    description:
-      "Renterne på statsobligationer stiger, og jeres troværdighed bliver testet. Nu handler det ikke kun om rigtig politik, men også om, hvordan markederne læser den.",
-    theme: "finansmarked",
-    difficulty: "very hard",
-    options: [
-      {
-        id: "restore_trust",
-        title: "Genopret tillid med disciplin",
-        text: "Vis ro, ansvarlighed og et klart signal til markederne.",
-        next: "global_crisis",
-        hiddenPoints: 9,
-      },
-      {
-        id: "defend_growth",
-        title: "Forsvar væksten trods pres",
-        text: "Beskyt aktivitet nu, men risiko for at markedet straffer jer hårdere.",
-        next: "global_crisis",
-        hiddenPoints: 4,
-      },
-      {
-        id: "central_bank_signal",
-        title: "Koordiner budskabet med centralbanken",
-        text: "Skab ro gennem signalpolitik, men uden garanti for effekt.",
-        next: "global_crisis",
-        hiddenPoints: 8,
-      },
-      {
-        id: "capital_shield",
-        title: "Byg ekstra sikkerhedsnet",
-        text: "Skab robusthed, men med høj pris og risiko for moralsk hasard.",
-        next: "global_crisis",
-        hiddenPoints: 6,
-      },
-    ],
-  },
-
-  growth_slump: {
-    id: "growth_slump",
-    title: "Væksten går i stå",
-    description:
-      "Investeringer bremses, forbrugerne tøver, og virksomhederne bliver mere forsigtige. Det svære er nu at tænke længere end næste kvartal.",
-    theme: "vækst",
-    difficulty: "hard",
-    options: [
-      {
-        id: "public_investment",
-        title: "Invester offentligt i produktivitet",
-        text: "Løft aktivitet og kapacitet, men øg underskuddet på kort sigt.",
-        next: "energy_shock",
-        hiddenPoints: 9,
-      },
-      {
-        id: "tax_relief",
-        title: "Sænk skatter for at stimulere",
-        text: "Forsøg at løfte efterspørgslen hurtigt, men med usikker effekt og lavere indtægter.",
-        next: "trade_break",
-        hiddenPoints: 6,
-      },
-      {
-        id: "structural_reforms",
-        title: "Gennemfør strukturelle reformer",
-        text: "Styrk langsigtet vækst og konkurrenceevne, men uden hurtig gevinst.",
-        next: "election_pressure",
-        hiddenPoints: 10,
-      },
-      {
-        id: "wait_and_see",
-        title: "Vent og se",
-        text: "Undgå forhastede fejl, men risiko for passivitet og tab af momentum.",
-        next: "market_panic",
-        hiddenPoints: 3,
-      },
-    ],
-  },
-
-  social_unrest: {
-    id: "social_unrest",
-    title: "Social uro breder sig",
-    description:
-      "Strejker, protester og vrede vælgere gør presset større. Nu er makroøkonomi blevet direkte politisk og socialt eksplosiv.",
-    theme: "social uro",
-    difficulty: "very hard",
-    options: [
-      {
-        id: "support_households",
-        title: "Støt husholdningerne",
-        text: "Skab ro hurtigt, men pres budgettet yderligere.",
-        next: "budget_strain",
-        hiddenPoints: 7,
-      },
-      {
-        id: "hold_line",
-        title: "Hold fast i linjen",
-        text: "Vis fasthed, men risiko for mere vrede og lavere tillid.",
-        next: "election_pressure",
-        hiddenPoints: 6,
-      },
-      {
-        id: "social_dialogue",
-        title: "Indkald til et bredt socialt forlig",
-        text: "Søg balance og legitimitet, men det tager tid og kræver kompromis.",
-        next: "growth_slump",
-        hiddenPoints: 9,
-      },
-      {
-        id: "blame_external",
-        title: "Skyd skylden på omverdenen",
-        text: "Kan give kort politisk gevinst, men er økonomisk tyndt.",
-        next: "election_pressure",
-        hiddenPoints: 2,
-      },
-    ],
-  },
-
-  election_pressure: {
-    id: "election_pressure",
-    title: "Valgår og folkelig vrede",
-    description:
-      "Valget nærmer sig. Presset stiger for at love hurtige forbedringer, selv om økonomien er skrøbelig. Vil I være ansvarlige eller populære?",
-    theme: "politik",
-    difficulty: "very hard",
-    options: [
-      {
-        id: "popular_relief",
-        title: "Lov hurtige lettelser",
-        text: "Populært nu, men risiko for større gæld, inflation og lavere troværdighed.",
-        next: "energy_shock",
-        hiddenPoints: 4,
-      },
-      {
-        id: "responsible_line",
-        title: "Hold en ansvarlig linje",
-        text: "Beskyt troværdighed og langsigtet styring, men bliv upopulær.",
-        next: "trade_break",
-        hiddenPoints: 9,
-      },
-      {
-        id: "targeted_compromise",
-        title: "Lav et målrettet kompromis",
-        text: "Søg balance mellem ansvar og ro, men kræver stor præcision.",
-        next: "growth_slump",
-        hiddenPoints: 10,
-      },
-      {
-        id: "communication_blitz",
-        title: "Kommuniker aggressivt uden store reformer",
-        text: "Forsøg at styre fortællingen, men risiko for at det virker hult.",
-        next: "social_unrest",
-        hiddenPoints: 3,
-      },
-    ],
-  },
-
-  energy_shock: {
-    id: "energy_shock",
-    title: "Energipriserne eksploderer igen",
-    description:
-      "En ny konflikt presser olie- og gaspriserne op. Det rammer både inflation, virksomheder og husholdninger på samme tid.",
-    theme: "energi",
-    difficulty: "very hard",
-    options: [
-      {
-        id: "subsidize_energy",
-        title: "Giv energisubsidier",
-        text: "Skærm økonomien hurtigt, men til høj pris for budgettet.",
-        next: "global_crisis",
-        hiddenPoints: 7,
-      },
-      {
-        id: "let_prices_rise",
-        title: "Lad priserne stige",
-        text: "Beskyt budgettet og signalér disciplin, men skab frustration og risiko for recession.",
-        next: "social_unrest",
-        hiddenPoints: 5,
-      },
-      {
-        id: "strategic_reserves",
-        title: "Brug strategiske reserver",
-        text: "Køb tid, men uden at løse den underliggende sårbarhed.",
-        next: "trade_break",
-        hiddenPoints: 8,
-      },
-      {
-        id: "green_shift",
-        title: "Fremskynd grøn omstilling",
-        text: "Tænk langsigtet robusthed frem for kortsigtet lettelse.",
-        next: "global_crisis",
-        hiddenPoints: 10,
-      },
-    ],
-  },
-
-  trade_break: {
-    id: "trade_break",
-    title: "Handelskonflikten breder sig",
-    description:
-      "Toldsatser og eksportrestriktioner skaber problemer i forsyningskæderne. Nu handler det om robusthed mod verden, ikke bare om pris.",
-    theme: "handel",
-    difficulty: "very hard",
-    options: [
-      {
-        id: "protect_market",
-        title: "Beskyt hjemmemarkedet",
-        text: "Skærm egne virksomheder, men gør varer dyrere og reducerer effektivitet.",
-        next: "global_crisis",
-        hiddenPoints: 5,
-      },
-      {
-        id: "new_allies",
-        title: "Søg nye handelsallierede",
-        text: "Spred risiko og byg nye relationer, men det tager tid.",
-        next: "global_crisis",
-        hiddenPoints: 9,
-      },
-      {
-        id: "subsidize_exporters",
-        title: "Støt eksportører",
-        text: "Hjælp erhvervslivet nu, men belaster budgettet.",
-        next: "market_panic",
-        hiddenPoints: 7,
-      },
-      {
-        id: "domestic_capacity",
-        title: "Byg hjemlig kapacitet",
-        text: "Styrk robusthed og strategi, men med høj kortsigtet pris.",
-        next: "growth_slump",
-        hiddenPoints: 10,
-      },
-    ],
-  },
-
-  global_crisis: {
-    id: "global_crisis",
-    title: "Global krise ryster systemet",
-    description:
-      "Flere chok rammer samtidig. Nu skal I vælge mellem dårlige løsninger og redde det, der kan reddes. Hver beslutning har store omkostninger.",
-    theme: "global krise",
-    difficulty: "very hard",
-    options: [
-      {
-        id: "coordinate",
-        title: "Koordiner internationalt",
-        text: "Søg fælles løsninger og del byrder, men giv afkald på noget kontrol.",
-        next: "intro_inflation",
-        hiddenPoints: 10,
-      },
-      {
-        id: "national_first",
-        title: "Sæt nationen først",
-        text: "Beskyt jer selv først, men øg risikoen for mere konflikt og mindre samarbejde.",
-        next: "intro_inflation",
-        hiddenPoints: 4,
-      },
-      {
-        id: "stimulus_wave",
-        title: "Stor hjælpepakke",
-        text: "Støt økonomien bredt, men øg gæld og inflationsrisiko.",
-        next: "intro_inflation",
-        hiddenPoints: 6,
-      },
-      {
-        id: "austerity_push",
-        title: "Hård økonomisk disciplin",
-        text: "Styrk troværdighed, men risiko for dybere recession og utilfredshed.",
-        next: "intro_inflation",
-        hiddenPoints: 7,
-      },
-    ],
-  },
+const CASE_DIFFICULTY: Record<string, "medium" | "hard" | "very hard"> = {
+  intro_inflation: "medium",
+  labor_pressure: "hard",
+  debt_doubt: "hard",
+  budget_strain: "hard",
+  social_unrest: "very hard",
+  growth_slump: "hard",
+  market_panic: "very hard",
+  election_pressure: "very hard",
+  bond_selloff: "very hard",
+  energy_shock: "very hard",
+  trade_break: "very hard",
+  bank_stress: "very hard",
+  climate_damage: "very hard",
+  currency_slide: "very hard",
+  global_crisis: "very hard",
 };
 
 const KEYWORDS = {
-  inflation: ["inflation", "pris", "prisniveau"],
-  growth: ["vækst", "bnp", "aktivitet", "produktion"],
+  inflation: ["inflation", "pris", "prisniveau", "prisudvikling"],
+  growth: ["vækst", "bnp", "aktivitet", "produktion", "efterspørgsel"],
   unemployment: ["arbejdsløshed", "ledighed", "beskæftigelse", "jobs"],
   debt: ["gæld", "underskud", "statsbudget", "budget", "offentlige finanser"],
   trust: ["tillid", "troværdighed", "marked", "investor", "obligation"],
-  rates: ["rente", "renter", "centralbank", "nationalbank"],
+  rates: ["rente", "renter", "centralbank", "nationalbank", "pengepolitik"],
   tradeoff: ["men", "risiko", "ulempe", "omkost", "på den anden side"],
-  longterm: ["langsigt", "struktur", "produktivitet", "konkurrenceevne", "reform"],
+  longterm: ["langsigt", "struktur", "produktivitet", "konkurrenceevne", "reform", "holdbarhed"],
 };
 
-function buildNewsCase(story: DailyStory): GameCase {
+function normalizeCase(caseId: string): RuntimeGameCase {
+  const source = gameCases[caseId];
+
+  if (!source) {
+    const fallback = gameCases.intro_inflation;
+    return {
+      id: fallback.id,
+      title: fallback.title,
+      description: fallback.description,
+      theme: fallback.theme,
+      macroQuestion: fallback.macroQuestion,
+      timeLimitSeconds: fallback.timeLimitSeconds,
+      hints: fallback.hints,
+      difficulty: CASE_DIFFICULTY[fallback.id] ?? "medium",
+      options: [
+        {
+          id: fallback.optionA.id,
+          title: fallback.optionA.title,
+          text: fallback.optionA.text,
+          next: fallback.optionA.next,
+          feedback: fallback.optionA.feedback,
+          hiddenPoints: CASE_POINTS[fallback.id]?.optionA ?? 7,
+        },
+        {
+          id: fallback.optionB.id,
+          title: fallback.optionB.title,
+          text: fallback.optionB.text,
+          next: fallback.optionB.next,
+          feedback: fallback.optionB.feedback,
+          hiddenPoints: CASE_POINTS[fallback.id]?.optionB ?? 6,
+        },
+      ],
+    };
+  }
+
+  return {
+    id: source.id,
+    title: source.title,
+    description: source.description,
+    theme: source.theme,
+    macroQuestion: source.macroQuestion,
+    timeLimitSeconds: source.timeLimitSeconds,
+    hints: source.hints,
+    difficulty: CASE_DIFFICULTY[source.id] ?? "hard",
+    options: [
+      {
+        id: source.optionA.id,
+        title: source.optionA.title,
+        text: source.optionA.text,
+        next: source.optionA.next,
+        feedback: source.optionA.feedback,
+        hiddenPoints: CASE_POINTS[source.id]?.optionA ?? 7,
+      },
+      {
+        id: source.optionB.id,
+        title: source.optionB.title,
+        text: source.optionB.text,
+        next: source.optionB.next,
+        feedback: source.optionB.feedback,
+        hiddenPoints: CASE_POINTS[source.id]?.optionB ?? 6,
+      },
+    ],
+  };
+}
+
+function buildNewsCase(story: DailyStory): RuntimeGameCase {
   return {
     id: `news_${story.id}`,
     title: `Aktuel nyhed: ${story.title}`,
     description: `Ny makrohistorie fra ${story.sourceLabel} i ${story.region}. Temaet er ${story.theme}, og I skal nu reagere som et økonomisk beslutningsteam. Hvis I mislæser situationen, kan det koste både troværdighed, vækst og politisk stabilitet.`,
     theme: story.theme,
+    macroQuestion:
+      "Hvordan bør økonomisk politik reagere på denne udvikling? Brug makroøkonomisk teori og vurder konsekvenserne for inflation, vækst, arbejdsløshed, tillid og offentlige finanser.",
+    timeLimitSeconds: 480,
+    hints: [
+      "Tænk på hvilket makroproblem nyheden peger på.",
+      "Forklar både kortsigtede og langsigtede konsekvenser.",
+      "Vis et trade-off mellem stabilitet og aktivitet.",
+    ],
     difficulty: "very hard",
     isNewsCase: true,
     options: [
@@ -654,6 +338,8 @@ function buildNewsCase(story: DailyStory): GameCase {
         text: "Prioritér troværdighed, prisstabilitet og signalværdi, men risiko for svagere aktivitet.",
         next: "market_panic",
         hiddenPoints: 9,
+        feedback:
+          "Dette valg prioriterer troværdighed og stabilitet. Makroøkonomisk giver det mening, hvis risikoen for inflation, kapitalflugt eller tab af tillid er stor. Ulempen er, at lavere efterspørgsel kan svække vækst og beskæftigelse.",
       },
       {
         id: `${story.id}_balanced`,
@@ -661,6 +347,8 @@ function buildNewsCase(story: DailyStory): GameCase {
         text: "Søg kompromis mellem stabilitet og aktivitet, men uden garanti for at markedet køber historien.",
         next: "growth_slump",
         hiddenPoints: 8,
+        feedback:
+          "Dette valg forsøger at afveje flere makromål på samme tid. Det er ofte stærkt, hvis situationen er kompleks, men det kræver præcis argumentation om både inflation, aktivitet og troværdighed.",
       },
       {
         id: `${story.id}_support`,
@@ -668,6 +356,8 @@ function buildNewsCase(story: DailyStory): GameCase {
         text: "Skærm særligt udsatte grupper eller sektorer, men pres budgettet.",
         next: "budget_strain",
         hiddenPoints: 7,
+        feedback:
+          "Dette valg kan være makroøkonomisk fornuftigt, hvis chokket rammer skævt. Målrettet støtte kan dæmpe fald i aktivitet uden at stimulere hele økonomien for meget, men det belaster budgettet.",
       },
       {
         id: `${story.id}_political`,
@@ -675,6 +365,8 @@ function buildNewsCase(story: DailyStory): GameCase {
         text: "Skab kort ro og lav konflikt nu, men med risiko for dårligere økonomisk troværdighed senere.",
         next: "election_pressure",
         hiddenPoints: 4,
+        feedback:
+          "Dette valg kan være politisk forståeligt på kort sigt, men makroøkonomisk er det ofte svagere, hvis det mangler klar kobling til inflation, vækst, gæld eller troværdighed.",
       },
     ],
   };
@@ -690,7 +382,7 @@ function formatTime(totalSeconds: number) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function buildCritique(reason: string, selectedOption: Option): EvalResult {
+function buildCritique(reason: string, selectedOption: RuntimeOption): EvalResult {
   const text = reason.toLowerCase();
 
   const seesInflation = includesAny(text, KEYWORDS.inflation);
@@ -906,7 +598,7 @@ export default function TeamPage() {
   const teamCode = String(params?.id ?? "usa01");
 
   const [setup, setSetup] = useState<TeamSetup | null>(null);
-  const [currentCase, setCurrentCase] = useState<GameCase>(baseCases.intro_inflation);
+  const [currentCase, setCurrentCase] = useState<RuntimeGameCase>(normalizeCase("intro_inflation"));
   const [selectedChoice, setSelectedChoice] = useState("");
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -914,17 +606,18 @@ export default function TeamPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [activeCrisis, setActiveCrisis] = useState<Crisis | null>(null);
   const [activeSurprise, setActiveSurprise] = useState<SurpriseEvent | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(180);
+  const [secondsLeft, setSecondsLeft] = useState(480);
   const [teamScore, setTeamScore] = useState(0);
   const [overallMeter, setOverallMeter] = useState("Stabil");
   const [opponents, setOpponents] = useState(initialOpponents);
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalBody, setModalBody] = useState("");
-  const [nextCasePending, setNextCasePending] = useState<GameCase | null>(null);
+  const [nextCasePending, setNextCasePending] = useState<RuntimeGameCase | null>(null);
   const [newsBanner, setNewsBanner] = useState<string | null>(null);
   const [round, setRound] = useState(1);
   const [gameFinished, setGameFinished] = useState(false);
+  const [revealedHints, setRevealedHints] = useState(0);
 
   useEffect(() => {
     const raw = localStorage.getItem("macro_game_team_setup");
@@ -936,12 +629,14 @@ export default function TeamPage() {
   }, []);
 
   useEffect(() => {
+    setSecondsLeft(currentCase.timeLimitSeconds);
+    setRevealedHints(0);
     const timer = setInterval(() => {
       setSecondsLeft((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentCase.id]);
+  }, [currentCase.id, currentCase.timeLimitSeconds]);
 
   const selectedOption = useMemo(
     () => currentCase.options.find((option) => option.id === selectedChoice),
@@ -1006,7 +701,8 @@ export default function TeamPage() {
       return buildNewsCase(story);
     }
 
-    return baseCases[baseNextId] ?? baseCases.intro_inflation;
+    setNewsBanner(null);
+    return normalizeCase(baseNextId);
   }
 
   function finishGame() {
@@ -1032,8 +728,10 @@ export default function TeamPage() {
     setShowModal(false);
     setSubmitted(false);
     setFeedback("");
-    setSecondsLeft(180);
+    setSecondsLeft(480);
     setNextCasePending(null);
+    setSelectedChoice("");
+    setReason("");
   }
 
   function handleTimeout() {
@@ -1048,7 +746,7 @@ export default function TeamPage() {
 
     setModalTitle("Evaluering af jeres svar");
     setModalBody(
-      "Kritik: I svarede ikke inden for 3 minutter. Det ligner handlelammelse under pres. I mister derfor samlet styrke i vurderingen. Point denne runde: -4 ud af maks 12 og min -4. Pointlogik: Manglende svar udløser minus, fordi passivitet under usikkerhed også er en økonomisk beslutning."
+      "Kritik: I svarede ikke inden for 8 minutter. Det ligner handlelammelse under pres. I mister derfor samlet styrke i vurderingen. Point denne runde: -4 ud af maks 12 og min -4. Pointlogik: Manglende svar udløser minus, fordi passivitet under usikkerhed også er en økonomisk beslutning."
     );
     setShowModal(true);
     setSubmitted(true);
@@ -1068,8 +766,9 @@ export default function TeamPage() {
 
     const previous = history.length > 0 ? history[history.length - 1] : null;
     const critique = buildCritique(reason, selectedOption);
-    const timeoutPenalty = secondsLeft < 30 ? -2 : 0;
-    const hiddenRoundScore = critique.hiddenScore + timeoutPenalty;
+    const timeoutPenalty = secondsLeft < 60 ? -2 : 0;
+    const hintPenalty = revealedHints > 1 ? -1 : 0;
+    const hiddenRoundScore = critique.hiddenScore + timeoutPenalty + hintPenalty;
     const nextCase = pickNextCase(selectedOption.next, round + 1);
 
     const praiseText =
@@ -1096,13 +795,22 @@ export default function TeamPage() {
 
     const timeText =
       timeoutPenalty < 0
-        ? "I afleverede sent i runden, og det svækker den samlede vurdering lidt."
+        ? "I afleverede meget sent i runden, og det svækker den samlede vurdering lidt."
         : "I afleverede inden for tiden, hvilket styrker jeres samlede beslutningskraft.";
 
-    const maxPossible = selectedOption.hiddenPoints + 11;
-    const minPossible = Math.max(-4, selectedOption.hiddenPoints - 8);
+    const hintText =
+      revealedHints === 0
+        ? "I klarede jer uden hints."
+        : revealedHints === 1
+        ? "I brugte ét hint."
+        : `I brugte ${revealedHints} hints, hvilket trækker en smule ned i point for selvstændighed.`;
 
-    const pointReasonText = `Pointlogik: Jeres valg havde en basisværdi på ${selectedOption.hiddenPoints}. I blev løftet, hvis I brugte fagbegreber som inflation, vækst, arbejdsløshed, gæld, tillid eller renter. I blev også løftet, hvis I viste trade-offs, konsekvenser og langsigtede effekter. I blev trukket ned, hvis svaret var for kort, for overfladisk, internt modstridende eller afleveret sent. Point denne runde: ${hiddenRoundScore}. Maks i denne runde: ${maxPossible}. Min i denne runde: ${minPossible}.`;
+    const maxPossible = selectedOption.hiddenPoints + 11;
+    const minPossible = Math.max(-4, selectedOption.hiddenPoints - 9);
+
+    const macroFeedbackText = `Makroøkonomisk feedback på valget: ${selectedOption.feedback}`;
+
+    const pointReasonText = `Pointlogik: Jeres valg havde en basisværdi på ${selectedOption.hiddenPoints}. I blev løftet, hvis I brugte fagbegreber som inflation, vækst, arbejdsløshed, gæld, tillid eller renter. I blev også løftet, hvis I viste trade-offs, konsekvenser og langsigtede effekter. I blev trukket ned, hvis svaret var for kort, for overfladisk, internt modstridende, afleveret sent eller byggede meget på hints. Point denne runde: ${hiddenRoundScore}. Maks i denne runde: ${maxPossible}. Min i denne runde: ${minPossible}.`;
 
     setHistory((prev) => [
       ...prev,
@@ -1126,9 +834,9 @@ export default function TeamPage() {
       `Jeres valg "${selectedOption.title}" er registreret. Næste case formes nu af både strategien og kvaliteten af jeres begrundelse.`
     );
 
-    setModalTitle(`Evaluering af jeres svar`);
+    setModalTitle("Evaluering af jeres svar");
     setModalBody(
-      `I valgte: "${selectedOption.title}". I skrev: "${reason}". Vurdering: Jeres svar vurderes som ${critique.level}. ${praiseText} ${criticismText} ${directFeedbackText} ${improvementText} Sammenligning: ${compareText} ${timeText} ${pointReasonText}`
+      `I valgte: "${selectedOption.title}". I skrev: "${reason}". Vurdering: Jeres svar vurderes som ${critique.level}. ${praiseText} ${criticismText} ${macroFeedbackText} ${directFeedbackText} ${improvementText} Sammenligning: ${compareText} ${timeText} ${hintText} ${pointReasonText}`
     );
     setShowModal(true);
     setSubmitted(true);
@@ -1167,6 +875,8 @@ export default function TeamPage() {
                 <p>Stærke runder: {finalAssessment.strongRounds}</p>
                 <p>Svage runder: {finalAssessment.weakRounds}</p>
                 <p>Gennemsnitlig rundescore: {finalAssessment.avgScore}</p>
+                <p>Format: 22 cases á 8 minutter</p>
+                <p>Planlagt intro: {INTRO_MINUTES} minutter</p>
               </div>
             </div>
 
@@ -1272,19 +982,24 @@ export default function TeamPage() {
               </div>
             </div>
 
-            <div
-              className={`rounded-2xl px-4 py-3 text-lg font-semibold border ${
-                secondsLeft < 30
-                  ? "bg-red-950/60 border-red-700 text-red-200"
-                  : "bg-slate-900/80 border-slate-700 text-amber-300"
-              }`}
-            >
-              Tid tilbage: {formatTime(secondsLeft)}
+            <div className="flex gap-3">
+              <div className="rounded-2xl px-4 py-3 text-lg font-semibold border bg-slate-900/80 border-slate-700 text-slate-100">
+                Runde {round}/{TOTAL_ROUNDS}
+              </div>
+              <div
+                className={`rounded-2xl px-4 py-3 text-lg font-semibold border ${
+                  secondsLeft < 60
+                    ? "bg-red-950/60 border-red-700 text-red-200"
+                    : "bg-slate-900/80 border-slate-700 text-amber-300"
+                }`}
+              >
+                Tid tilbage: {formatTime(secondsLeft)}
+              </div>
             </div>
           </div>
 
           <p className="text-slate-300 mb-4">
-            I har 3 minutter pr. case. Aktuelle nyheder og uforudsete hændelser kan bryde ind undervejs.
+            I har 8 minutter pr. case. Aktuelle nyheder og uforudsete hændelser kan bryde ind undervejs. Hele spillet er planlagt til 22 cases á 8 minutter, plus 4 minutters intro.
           </p>
 
           {newsBanner && (
@@ -1338,7 +1053,48 @@ export default function TeamPage() {
               </div>
             </div>
             <h2 className="text-2xl font-semibold mb-2">{currentCase.title}</h2>
-            <p className="text-slate-300 leading-8">{currentCase.description}</p>
+            <p className="text-slate-300 leading-8 mb-4">{currentCase.description}</p>
+
+            <div className="rounded-2xl border border-amber-700/50 bg-amber-950/20 p-4">
+              <div className="text-xs uppercase tracking-widest text-amber-300 mb-2">
+                Makrospørgsmål
+              </div>
+              <p className="text-slate-100 leading-8">{currentCase.macroQuestion}</p>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 mb-6 shadow-2xl">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h2 className="text-xl font-semibold">Hints</h2>
+              <button
+                onClick={() =>
+                  setRevealedHints((prev) =>
+                    prev < currentCase.hints.length ? prev + 1 : prev
+                  )
+                }
+                disabled={revealedHints >= currentCase.hints.length}
+                className="rounded-2xl border border-amber-500 px-4 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-40"
+              >
+                Vis næste hint
+              </button>
+            </div>
+
+            {revealedHints === 0 ? (
+              <p className="text-slate-400">
+                Brug hints, hvis I går i stå. De vises ét ad gangen.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {currentCase.hints.slice(0, revealedHints).map((hint, index) => (
+                  <div
+                    key={`${currentCase.id}-hint-${index}`}
+                    className="rounded-2xl bg-slate-950/70 p-4 border border-slate-800 text-slate-200"
+                  >
+                    Hint {index + 1}: {hint}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -1422,6 +1178,17 @@ export default function TeamPage() {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
+            <h2 className="text-xl font-semibold mb-3">Hvad vurderes jeres svar på?</h2>
+            <div className="space-y-2 text-slate-300 text-sm">
+              <p>Brug af makroøkonomiske begreber</p>
+              <p>Konsekvenser for inflation, vækst og arbejdsmarked</p>
+              <p>Troværdighed, gæld og renter</p>
+              <p>Tydelige trade-offs</p>
+              <p>Langsigtede konsekvenser</p>
+            </div>
           </div>
         </div>
       </div>
