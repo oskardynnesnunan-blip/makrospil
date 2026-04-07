@@ -283,6 +283,12 @@ function normalizeCase(caseId: string): RuntimeGameCase {
     macroQuestion?: string;
     timeLimitSeconds?: number;
     hints?: string[];
+    optionA: typeof source.optionA & {
+      feedback?: string;
+    };
+    optionB: typeof source.optionB & {
+      feedback?: string;
+    };
   };
 
   return {
@@ -303,7 +309,9 @@ function normalizeCase(caseId: string): RuntimeGameCase {
         title: source.optionA.title,
         text: source.optionA.text,
         next: source.optionA.next,
-        feedback: source.optionA.feedback,
+        feedback:
+          sourceWithOptionalFields.optionA.feedback ??
+          "Dette valg kræver en tydelig makroøkonomisk begrundelse.",
         hiddenPoints: CASE_POINTS[source.id]?.optionA ?? 7,
       },
       {
@@ -311,7 +319,9 @@ function normalizeCase(caseId: string): RuntimeGameCase {
         title: source.optionB.title,
         text: source.optionB.text,
         next: source.optionB.next,
-        feedback: source.optionB.feedback,
+        feedback:
+          sourceWithOptionalFields.optionB.feedback ??
+          "Dette valg kræver en tydelig makroøkonomisk begrundelse.",
         hiddenPoints: CASE_POINTS[source.id]?.optionB ?? 6,
       },
     ],
