@@ -48,7 +48,7 @@ type RuntimeGameCase = {
   title: string;
   description: string;
   theme: string;
-  macroQuestion: string;
+  macroQuestion?: string;
   timeLimitSeconds: number;
   hints: string[];
   difficulty: "medium" | "hard" | "very hard";
@@ -86,8 +86,16 @@ type TeamSetup = {
   startedAt: string;
 };
 
+type Opponent = {
+  name: string;
+  score: number;
+  lastAction: string;
+};
+
 const TOTAL_ROUNDS = 22;
 const INTRO_MINUTES = 4;
+const DEFAULT_CASE_ID = "intro_inflation";
+const DEFAULT_CASE_TIME = 480;
 
 const crises: Crisis[] = [
   {
@@ -196,7 +204,7 @@ const surpriseEvents: SurpriseEvent[] = [
   },
 ];
 
-const initialOpponents = [
+const initialOpponents: Opponent[] = [
   { name: "USA", score: 0, lastAction: "Ikke startet" },
   { name: "EU", score: 0, lastAction: "Ikke startet" },
   { name: "Kina", score: 0, lastAction: "Ikke startet" },
@@ -240,59 +248,51 @@ const CASE_DIFFICULTY: Record<string, "medium" | "hard" | "very hard"> = {
 };
 
 const KEYWORDS = {
-  inflation: ["inflation", "pris", "prisniveau", "prisudvikling"],
+  inflation: ["inflation", "pris", "priser", "prisniveau", "prisudvikling"],
   growth: ["vækst", "bnp", "aktivitet", "produktion", "efterspørgsel"],
   unemployment: ["arbejdsløshed", "ledighed", "beskæftigelse", "jobs"],
   debt: ["gæld", "underskud", "statsbudget", "budget", "offentlige finanser"],
   trust: ["tillid", "troværdighed", "marked", "investor", "obligation"],
   rates: ["rente", "renter", "centralbank", "nationalbank", "pengepolitik"],
   tradeoff: ["men", "risiko", "ulempe", "omkost", "på den anden side"],
-  longterm: ["langsigt", "struktur", "produktivitet", "konkurrenceevne", "reform", "holdbarhed"],
+  longterm: [
+    "langsigt",
+    "struktur",
+    "produktivitet",
+    "konkurrenceevne",
+    "reform",
+    "holdbarhed",
+  ],
 };
 
-function normalizeCase(caseId: string): RuntimeGameCase {
-  const source = gameCases[caseId];
+function includesAny(text: string, words: string[]) {
+  return words.some((word) => text.includes(word));
+}
 
-  if (!source) {
-    const fallback = gameCases.intro_inflation;
-    return {
-      id: fallback.id,
-      title: fallback.title,
-      description: fallback.description,
-      theme: fallback.theme,
-      macroQuestion: fallback.macroQuestion,
-      timeLimitSeconds: fallback.timeLimitSeconds,
-      hints: fallback.hints,
-      difficulty: CASE_DIFFICULTY[fallback.id] ?? "medium",
-      options: [
-        {
-          id: fallback.optionA.id,
-          title: fallback.optionA.title,
-          text: fallback.optionA.text,
-          next: fallback.optionA.next,
-          feedback: fallback.optionA.feedback,
-          hiddenPoints: CASE_POINTS[fallback.id]?.optionA ?? 7,
-        },
-        {
-          id: fallback.optionB.id,
-          title: fallback.optionB.title,
-          text: fallback.optionB.text,
-          next: fallback.optionB.next,
-          feedback: fallback.optionB.feedback,
-          hiddenPoints: CASE_POINTS[fallback.id]?.optionB ?? 6,
-        },
-      ],
-    };
-  }
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function normalizeCase(caseId: string): RuntimeGameCase {
+  const fallback = gameCases[DEFAULT_CASE_ID];
+  const source = gameCases[caseId] ?? fallback;
+
+  const sourceWithOptionalMacro = source as typeof source & {
+    macroQuestion?: string;
+  };
 
   return {
     id: source.id,
     title: source.title,
     description: source.description,
     theme: source.theme,
-    macroQuestion: source.macroQuestion,
-    timeLimitSeconds: source.timeLimitSeconds,
-    hints: source.hints,
+    macroQuestion:
+      sourceWithOptionalMacro.macroQuestion ??
+      "Hvordan bør økonomisk politik reagere i denne situation? Brug makroøkonomisk teori og forklar konsekvenserne for inflation, vækst, arbejdsløshed, tillid og offentlige finanser.",
+    timeLimitSeconds: source.timeLimitSeconds ?? DEFAULT_CASE_TIME,
+    hints: source.hints ?? [],
     difficulty: CASE_DIFFICULTY[source.id] ?? "hard",
     options: [
       {
@@ -323,7 +323,7 @@ function buildNewsCase(story: DailyStory): RuntimeGameCase {
     theme: story.theme,
     macroQuestion:
       "Hvordan bør økonomisk politik reagere på denne udvikling? Brug makroøkonomisk teori og vurder konsekvenserne for inflation, vækst, arbejdsløshed, tillid og offentlige finanser.",
-    timeLimitSeconds: 480,
+    timeLimitSeconds: DEFAULT_CASE_TIME,
     hints: [
       "Tænk på hvilket makroproblem nyheden peger på.",
       "Forklar både kortsigtede og langsigtede konsekvenser.",
@@ -370,16 +370,6 @@ function buildNewsCase(story: DailyStory): RuntimeGameCase {
       },
     ],
   };
-}
-
-function includesAny(text: string, words: string[]) {
-  return words.some((word) => text.includes(word));
-}
-
-function formatTime(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function buildCritique(reason: string, selectedOption: RuntimeOption): EvalResult {
@@ -560,8 +550,12 @@ function compareToPrevious(current: EvalResult, previous?: HistoryEntry | null) 
 }
 
 function buildFinalAssessment(history: HistoryEntry[], finalScore: number, winner: string) {
-  const strongRounds = history.filter((h) => h.level === "meget stærkt" || h.level === "stærkt").length;
-  const weakRounds = history.filter((h) => h.level === "svagt" || h.level === "usikkert").length;
+  const strongRounds = history.filter(
+    (h) => h.level === "meget stærkt" || h.level === "stærkt"
+  ).length;
+  const weakRounds = history.filter(
+    (h) => h.level === "svagt" || h.level === "usikkert"
+  ).length;
   const avgScore =
     history.length > 0
       ? Math.round(history.reduce((sum, h) => sum + h.hiddenScore, 0) / history.length)
@@ -598,7 +592,9 @@ export default function TeamPage() {
   const teamCode = String(params?.id ?? "usa01");
 
   const [setup, setSetup] = useState<TeamSetup | null>(null);
-  const [currentCase, setCurrentCase] = useState<RuntimeGameCase>(normalizeCase("intro_inflation"));
+  const [currentCase, setCurrentCase] = useState<RuntimeGameCase>(
+    normalizeCase(DEFAULT_CASE_ID)
+  );
   const [selectedChoice, setSelectedChoice] = useState("");
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -606,10 +602,10 @@ export default function TeamPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [activeCrisis, setActiveCrisis] = useState<Crisis | null>(null);
   const [activeSurprise, setActiveSurprise] = useState<SurpriseEvent | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(480);
+  const [secondsLeft, setSecondsLeft] = useState(DEFAULT_CASE_TIME);
   const [teamScore, setTeamScore] = useState(0);
   const [overallMeter, setOverallMeter] = useState("Stabil");
-  const [opponents, setOpponents] = useState(initialOpponents);
+  const [opponents, setOpponents] = useState<Opponent[]>(initialOpponents);
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalBody, setModalBody] = useState("");
@@ -624,13 +620,16 @@ export default function TeamPage() {
     if (raw) {
       try {
         setSetup(JSON.parse(raw));
-      } catch {}
+      } catch {
+        setSetup(null);
+      }
     }
   }, []);
 
   useEffect(() => {
-    setSecondsLeft(currentCase.timeLimitSeconds);
+    setSecondsLeft(currentCase.timeLimitSeconds || DEFAULT_CASE_TIME);
     setRevealedHints(0);
+
     const timer = setInterval(() => {
       setSecondsLeft((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
@@ -674,10 +673,10 @@ export default function TeamPage() {
           lastAction: [
             "Hæv renten",
             "Målrettet støtte",
-            "Omskol arbejdskraft",
             "Koordiner internationalt",
             "Hold en ansvarlig linje",
             "Støt eksportører",
+            "Forsvar væksten",
           ][Math.floor(Math.random() * 6)],
         }))
         .sort((a, b) => b.score - a.score)
@@ -728,7 +727,6 @@ export default function TeamPage() {
     setShowModal(false);
     setSubmitted(false);
     setFeedback("");
-    setSecondsLeft(480);
     setNextCasePending(null);
     setSelectedChoice("");
     setReason("");
@@ -737,6 +735,18 @@ export default function TeamPage() {
   function handleTimeout() {
     const penalty = -4;
     const nextCase = pickNextCase("market_panic", round + 1);
+
+    setHistory((prev) => [
+      ...prev,
+      {
+        round,
+        caseTitle: currentCase.title,
+        optionTitle: "Intet svar",
+        reason: "",
+        level: "timeout",
+        hiddenScore: penalty,
+      },
+    ]);
 
     setTeamScore((prev) => {
       const next = prev + penalty;
@@ -855,19 +865,19 @@ export default function TeamPage() {
 
   if (gameFinished) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(180,140,40,0.18),_transparent_30%),linear-gradient(180deg,_#09111f_0%,_#0b1324_35%,_#050913_100%)] text-white p-8">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(180,140,40,0.18),_transparent_30%),linear-gradient(180deg,_#09111f_0%,_#0b1324_35%,_#050913_100%)] p-8 text-white">
+        <div className="mx-auto max-w-5xl space-y-6">
           <div className="rounded-3xl border border-amber-700 bg-slate-900/90 p-8 shadow-2xl">
-            <div className="text-xs uppercase tracking-[0.3em] text-amber-300 mb-3">
+            <div className="mb-3 text-xs uppercase tracking-[0.3em] text-amber-300">
               Spillet er afsluttet
             </div>
-            <h1 className="text-5xl font-bold mb-4">Vinderen er: {winner}</h1>
-            <p className="text-slate-300 text-lg leading-8">{finalAssessment.summary}</p>
+            <h1 className="mb-4 text-5xl font-bold">Vinderen er: {winner}</h1>
+            <p className="text-lg leading-8 text-slate-300">{finalAssessment.summary}</p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-              <h2 className="text-2xl font-semibold mb-4">Jeres slutresultat</h2>
+              <h2 className="mb-4 text-2xl font-semibold">Jeres slutresultat</h2>
               <div className="space-y-2 text-slate-300">
                 <p>Hold: {setup?.teamName ?? teamCode.toUpperCase()}</p>
                 <p>Samlet score: {teamScore}</p>
@@ -881,36 +891,42 @@ export default function TeamPage() {
             </div>
 
             <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-              <h2 className="text-2xl font-semibold mb-4">Hvordan ville I klare jer som finansminister?</h2>
-              <p className="text-slate-300 leading-8">{finalAssessment.financeMinisterVerdict}</p>
+              <h2 className="mb-4 text-2xl font-semibold">
+                Hvordan ville I klare jer som finansminister?
+              </h2>
+              <p className="leading-8 text-slate-300">
+                {finalAssessment.financeMinisterVerdict}
+              </p>
             </div>
           </div>
 
           <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-            <h2 className="text-2xl font-semibold mb-4">Hvorfor fik I de point, I gjorde?</h2>
+            <h2 className="mb-4 text-2xl font-semibold">Hvorfor fik I de point, I gjorde?</h2>
             <div className="space-y-4 text-slate-300">
               <p>
-                Jeres point blev skabt af en kombination af strategiske valg og kvaliteten af jeres begrundelser.
-                Hver runde havde en basisværdi ud fra, hvor makroøkonomisk holdbart valget var i situationen.
+                Jeres point blev skabt af en kombination af strategiske valg og kvaliteten af jeres
+                begrundelser. Hver runde havde en basisværdi ud fra, hvor makroøkonomisk holdbart
+                valget var i situationen.
               </p>
               <p>
-                I blev løftet, når I arbejdede med inflation, vækst, arbejdsløshed, gæld, troværdighed,
-                renter og langsigtede konsekvenser på samme tid. I blev især belønnet, når I viste tydelige trade-offs.
+                I blev løftet, når I arbejdede med inflation, vækst, arbejdsløshed, gæld,
+                troværdighed, renter og langsigtede konsekvenser på samme tid. I blev især belønnet,
+                når I viste tydelige trade-offs.
               </p>
               <p>
-                I blev trukket ned, når svarene blev for korte, for politiske uden økonomisk substans,
-                eller når begrundelsen ikke passede til det valg, I faktisk tog.
+                I blev trukket ned, når svarene blev for korte, for politiske uden økonomisk
+                substans, eller når begrundelsen ikke passede til det valg, I faktisk tog.
               </p>
             </div>
           </div>
 
           <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-            <h2 className="text-2xl font-semibold mb-4">Slutrangliste</h2>
+            <h2 className="mb-4 text-2xl font-semibold">Slutrangliste</h2>
             <div className="space-y-3">
               {leaderboard.map((team, index) => (
                 <div
                   key={team.name}
-                  className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 flex items-center justify-between"
+                  className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
                 >
                   <div className="font-semibold">
                     {index + 1}. {team.name}
@@ -922,8 +938,8 @@ export default function TeamPage() {
           </div>
 
           <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-            <h2 className="text-2xl font-semibold mb-4">Jeres runder</h2>
-            <div className="space-y-3 max-h-[420px] overflow-auto pr-1">
+            <h2 className="mb-4 text-2xl font-semibold">Jeres runder</h2>
+            <div className="max-h-[420px] space-y-3 overflow-auto pr-1">
               {history.map((item, index) => (
                 <div
                   key={index}
@@ -932,9 +948,9 @@ export default function TeamPage() {
                   <div className="font-semibold text-white">
                     Runde {item.round}: {item.caseTitle}
                   </div>
-                  <div className="text-slate-300 mt-1">Valg: {item.optionTitle}</div>
-                  <div className="text-slate-400 mt-1">Vurdering: {item.level}</div>
-                  <div className="text-slate-500 mt-1">Rundescore: {item.hiddenScore}</div>
+                  <div className="mt-1 text-slate-300">Valg: {item.optionTitle}</div>
+                  <div className="mt-1 text-slate-400">Vurdering: {item.level}</div>
+                  <div className="mt-1 text-slate-500">Rundescore: {item.hiddenScore}</div>
                 </div>
               ))}
             </div>
@@ -945,15 +961,15 @@ export default function TeamPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(180,140,40,0.18),_transparent_30%),linear-gradient(180deg,_#09111f_0%,_#0b1324_35%,_#050913_100%)] text-white p-8">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(180,140,40,0.18),_transparent_30%),linear-gradient(180deg,_#09111f_0%,_#0b1324_35%,_#050913_100%)] p-8 text-white">
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
-          <div className="w-full max-w-3xl rounded-3xl border border-amber-700 bg-slate-950 shadow-2xl p-6">
-            <div className="text-xs uppercase tracking-widest text-amber-300 mb-2">
+          <div className="w-full max-w-3xl rounded-3xl border border-amber-700 bg-slate-950 p-6 shadow-2xl">
+            <div className="mb-2 text-xs uppercase tracking-widest text-amber-300">
               Feedback
             </div>
-            <h2 className="text-2xl font-bold mb-4">{modalTitle}</h2>
-            <p className="text-slate-200 leading-8">{modalBody}</p>
+            <h2 className="mb-4 text-2xl font-bold">{modalTitle}</h2>
+            <p className="leading-8 text-slate-200">{modalBody}</p>
 
             <div className="mt-6 flex justify-end">
               <button
@@ -967,30 +983,32 @@ export default function TeamPage() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto grid lg:grid-cols-3 gap-6">
+      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="text-xs uppercase tracking-[0.25em] text-amber-300/80 mb-2">
+              <div className="mb-2 text-xs uppercase tracking-[0.25em] text-amber-300/80">
                 Makrospil
               </div>
               <h1 className="text-4xl font-bold">
                 {setup?.teamName ?? teamCode.toUpperCase()}
               </h1>
-              <div className="text-slate-400 mt-2">
-                {setup?.members?.length ? `Medlemmer: ${setup.members.join(", ")}` : "Ingen medlemmer registreret"}
+              <div className="mt-2 text-slate-400">
+                {setup?.members?.length
+                  ? `Medlemmer: ${setup.members.join(", ")}`
+                  : "Ingen medlemmer registreret"}
               </div>
             </div>
 
             <div className="flex gap-3">
-              <div className="rounded-2xl px-4 py-3 text-lg font-semibold border bg-slate-900/80 border-slate-700 text-slate-100">
+              <div className="rounded-2xl border border-slate-700 bg-slate-900/80 px-4 py-3 text-lg font-semibold text-slate-100">
                 Runde {round}/{TOTAL_ROUNDS}
               </div>
               <div
-                className={`rounded-2xl px-4 py-3 text-lg font-semibold border ${
+                className={`rounded-2xl border px-4 py-3 text-lg font-semibold ${
                   secondsLeft < 60
-                    ? "bg-red-950/60 border-red-700 text-red-200"
-                    : "bg-slate-900/80 border-slate-700 text-amber-300"
+                    ? "border-red-700 bg-red-950/60 text-red-200"
+                    : "border-slate-700 bg-slate-900/80 text-amber-300"
                 }`}
               >
                 Tid tilbage: {formatTime(secondsLeft)}
@@ -998,34 +1016,38 @@ export default function TeamPage() {
             </div>
           </div>
 
-          <p className="text-slate-300 mb-4">
-            I har 8 minutter pr. case. Aktuelle nyheder og uforudsete hændelser kan bryde ind undervejs. Hele spillet er planlagt til 22 cases á 8 minutter, plus 4 minutters intro.
+          <p className="mb-4 text-slate-300">
+            I har 8 minutter pr. case. Aktuelle nyheder og uforudsete hændelser kan bryde ind
+            undervejs. Hele spillet er planlagt til 22 cases á 8 minutter, plus 4 minutters intro.
           </p>
 
           {newsBanner && (
-            <div className="rounded-2xl border border-blue-700 bg-blue-950/30 p-4 mb-6 text-blue-100">
+            <div className="mb-6 rounded-2xl border border-blue-700 bg-blue-950/30 p-4 text-blue-100">
               {newsBanner}
             </div>
           )}
 
           {activeSurprise && (
-            <div className="rounded-2xl border border-violet-700 bg-violet-950/30 p-4 mb-6 text-violet-100">
-              <div className="text-xs uppercase tracking-widest mb-2">Uforudset hændelse</div>
+            <div className="mb-6 rounded-2xl border border-violet-700 bg-violet-950/30 p-4 text-violet-100">
+              <div className="mb-2 text-xs uppercase tracking-widest">Uforudset hændelse</div>
               <div className="font-semibold">{activeSurprise.title}</div>
               <div className="mt-1">{activeSurprise.description}</div>
               <div className="mt-2 text-sm text-violet-300">Effekt: {activeSurprise.effect}</div>
             </div>
           )}
 
-          <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 mb-6 shadow-2xl">
-            <div className="text-xs uppercase tracking-widest text-amber-300 mb-3">
+          <div className="mb-6 rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
+            <div className="mb-3 text-xs uppercase tracking-widest text-amber-300">
               Dagens makronyheder
             </div>
             <div className="space-y-3">
               {dailyStories.map((story) => (
-                <div key={story.id} className="rounded-2xl bg-slate-950/70 p-3 border border-slate-800">
+                <div
+                  key={story.id}
+                  className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3"
+                >
                   <div className="font-semibold text-slate-100">{story.title}</div>
-                  <div className="text-sm text-slate-400 mt-1">
+                  <div className="mt-1 text-sm text-slate-400">
                     {story.region} • {story.sourceLabel} • {story.theme}
                   </div>
                 </div>
@@ -1034,17 +1056,17 @@ export default function TeamPage() {
           </div>
 
           {activeCrisis && (
-            <div className="rounded-3xl border border-red-700 bg-red-950/40 p-6 mb-6 shadow-2xl">
-              <div className="text-xs uppercase tracking-widest text-red-300 mb-2">
+            <div className="mb-6 rounded-3xl border border-red-700 bg-red-950/40 p-6 shadow-2xl">
+              <div className="mb-2 text-xs uppercase tracking-widest text-red-300">
                 Krise • {activeCrisis.severity}
               </div>
-              <h2 className="text-2xl font-semibold mb-2">{activeCrisis.title}</h2>
+              <h2 className="mb-2 text-2xl font-semibold">{activeCrisis.title}</h2>
               <p className="text-slate-100">{activeCrisis.description}</p>
             </div>
           )}
 
-          <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 mb-6 shadow-2xl">
-            <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="mb-6 rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <div className="text-xs uppercase tracking-widest text-amber-400">
                 Tema: {currentCase.theme}
               </div>
@@ -1052,19 +1074,19 @@ export default function TeamPage() {
                 Sværhedsgrad: {currentCase.difficulty}
               </div>
             </div>
-            <h2 className="text-2xl font-semibold mb-2">{currentCase.title}</h2>
-            <p className="text-slate-300 leading-8 mb-4">{currentCase.description}</p>
+            <h2 className="mb-2 text-2xl font-semibold">{currentCase.title}</h2>
+            <p className="mb-4 leading-8 text-slate-300">{currentCase.description}</p>
 
             <div className="rounded-2xl border border-amber-700/50 bg-amber-950/20 p-4">
-              <div className="text-xs uppercase tracking-widest text-amber-300 mb-2">
+              <div className="mb-2 text-xs uppercase tracking-widest text-amber-300">
                 Makrospørgsmål
               </div>
-              <p className="text-slate-100 leading-8">{currentCase.macroQuestion}</p>
+              <p className="leading-8 text-slate-100">{currentCase.macroQuestion}</p>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 mb-6 shadow-2xl">
-            <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="mb-6 rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Hints</h2>
               <button
                 onClick={() =>
@@ -1088,7 +1110,7 @@ export default function TeamPage() {
                 {currentCase.hints.slice(0, revealedHints).map((hint, index) => (
                   <div
                     key={`${currentCase.id}-hint-${index}`}
-                    className="rounded-2xl bg-slate-950/70 p-4 border border-slate-800 text-slate-200"
+                    className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-slate-200"
                   >
                     Hint {index + 1}: {hint}
                   </div>
@@ -1097,7 +1119,7 @@ export default function TeamPage() {
             )}
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
+          <div className="mb-6 grid gap-4 md:grid-cols-2">
             {currentCase.options.map((option) => (
               <button
                 key={option.id}
@@ -1108,18 +1130,18 @@ export default function TeamPage() {
                     : "border-slate-700 bg-slate-900/70 hover:border-amber-500 hover:bg-slate-800/90"
                 }`}
               >
-                <h3 className="text-lg font-semibold mb-2">{option.title}</h3>
+                <h3 className="mb-2 text-lg font-semibold">{option.title}</h3>
                 <p className="text-slate-300">{option.text}</p>
               </button>
             ))}
           </div>
 
-          <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 mb-6 shadow-2xl">
-            <h2 className="text-xl font-semibold mb-4">Begrund jeres valg</h2>
+          <div className="mb-6 rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
+            <h2 className="mb-4 text-xl font-semibold">Begrund jeres valg</h2>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full min-h-40 rounded-3xl border border-slate-700 bg-slate-950/80 p-4 text-white"
+              className="min-h-40 w-full rounded-3xl border border-slate-700 bg-slate-950/80 p-4 text-white"
               placeholder="Forklar jeres valg fagligt. Brug gerne inflation, vækst, arbejdsløshed, gæld, tillid, renter, trade-offs og langsigtede konsekvenser."
             />
           </div>
@@ -1127,7 +1149,7 @@ export default function TeamPage() {
           <button
             onClick={handleSubmit}
             disabled={!selectedChoice || !reason.trim() || secondsLeft === 0}
-            className="rounded-3xl bg-amber-400 px-6 py-3 font-semibold text-slate-950 hover:bg-amber-300 disabled:opacity-50 shadow-lg"
+            className="rounded-3xl bg-amber-400 px-6 py-3 font-semibold text-slate-950 shadow-lg hover:bg-amber-300 disabled:opacity-50"
           >
             Send svar
           </button>
@@ -1141,23 +1163,26 @@ export default function TeamPage() {
 
         <div className="space-y-6">
           <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-            <h2 className="text-xl font-semibold mb-3">Samlet status</h2>
+            <h2 className="mb-3 text-xl font-semibold">Samlet status</h2>
             <p className="text-slate-300">Samlet score: {teamScore}</p>
             <p className="text-slate-300">Vurdering: {overallMeter}</p>
           </div>
 
           <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-            <h2 className="text-xl font-semibold mb-3">Placering blandt holdene</h2>
+            <h2 className="mb-3 text-xl font-semibold">Placering blandt holdene</h2>
             <div className="space-y-3">
               {leaderboard.map((team, index) => (
-                <div key={team.name} className="rounded-2xl bg-slate-950/70 p-3 border border-slate-800">
+                <div
+                  key={team.name}
+                  className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3"
+                >
                   <div className="flex items-center justify-between">
                     <div className="font-semibold">
                       {index + 1}. {team.name}
                     </div>
                     <div className="text-amber-300">{team.score}</div>
                   </div>
-                  <div className="text-sm text-slate-400 mt-1">
+                  <div className="mt-1 text-sm text-slate-400">
                     Seneste bevægelse: {team.lastAction}
                   </div>
                 </div>
@@ -1166,13 +1191,16 @@ export default function TeamPage() {
           </div>
 
           <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-            <h2 className="text-xl font-semibold mb-3">Jeres tidligere svar</h2>
+            <h2 className="mb-3 text-xl font-semibold">Jeres tidligere svar</h2>
             {history.length === 0 ? (
               <p className="text-slate-400">Ingen svar endnu.</p>
             ) : (
-              <div className="space-y-3 max-h-[320px] overflow-auto pr-1">
+              <div className="max-h-[320px] space-y-3 overflow-auto pr-1">
                 {history.map((item, index) => (
-                  <div key={index} className="rounded-2xl bg-slate-950/70 p-3 text-sm text-slate-300 border border-slate-800">
+                  <div
+                    key={index}
+                    className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 text-sm text-slate-300"
+                  >
                     {item.caseTitle} • {item.optionTitle} • {item.level} • {item.hiddenScore} point
                   </div>
                 ))}
@@ -1181,8 +1209,8 @@ export default function TeamPage() {
           </div>
 
           <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-            <h2 className="text-xl font-semibold mb-3">Hvad vurderes jeres svar på?</h2>
-            <div className="space-y-2 text-slate-300 text-sm">
+            <h2 className="mb-3 text-xl font-semibold">Hvad vurderes jeres svar på?</h2>
+            <div className="space-y-2 text-sm text-slate-300">
               <p>Brug af makroøkonomiske begreber</p>
               <p>Konsekvenser for inflation, vækst og arbejdsmarked</p>
               <p>Troværdighed, gæld og renter</p>
