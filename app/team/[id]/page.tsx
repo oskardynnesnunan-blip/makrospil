@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { gameCases } from "@/app/data/cases";
 
@@ -57,17 +57,21 @@ type RuntimeGameCase = {
 };
 
 type EvalResult = {
-  hiddenScore: number;
+  totalScore: number;
   level: string;
   praise: string[];
   criticism: string[];
   improvements: string[];
   directComments: string[];
+  choiceScore: number;
+  conceptScore: number;
+  tradeoffScore: number;
+  depthScore: number;
+  consistencyPenalty: number;
   keywordCount: number;
   tradeoffCount: number;
   weakCount: number;
   length: number;
-  consistencyPenalty: number;
 };
 
 type HistoryEntry = {
@@ -77,6 +81,7 @@ type HistoryEntry = {
   reason: string;
   level: string;
   hiddenScore: number;
+  caseId?: string;
 };
 
 type TeamSetup = {
@@ -92,10 +97,22 @@ type Opponent = {
   lastAction: string;
 };
 
-const TOTAL_ROUNDS = 22;
+const TOTAL_ROUNDS = 32;
 const INTRO_MINUTES = 4;
 const DEFAULT_CASE_ID = "intro_inflation";
 const DEFAULT_CASE_TIME = 480;
+
+const FALLBACK_HINTS = [
+  "Forklar hvilket makroproblem situationen peger på.",
+  "Vis både kortsigtede og langsigtede konsekvenser.",
+  "Tag stilling til inflation, vækst, beskæftigelse og tillid.",
+];
+
+const FOCUS_GUIDE = [
+  "Hvad er det vigtigste problem i casen?",
+  "Hvad er trade-off mellem jeres løsning og alternativet?",
+  "Brug mindst 3 fagbegreber i forklaringen.",
+];
 
 const crises: Crisis[] = [
   {
@@ -227,6 +244,16 @@ const CASE_POINTS: Record<string, { optionA: number; optionB: number }> = {
   climate_damage: { optionA: 6, optionB: 9 },
   currency_slide: { optionA: 8, optionB: 5 },
   global_crisis: { optionA: 10, optionB: 4 },
+  housing_bubble: { optionA: 8, optionB: 5 },
+  supply_chain_freeze: { optionA: 8, optionB: 6 },
+  tax_revolt: { optionA: 8, optionB: 5 },
+  export_collapse: { optionA: 7, optionB: 8 },
+  pension_gap: { optionA: 9, optionB: 4 },
+  food_price_spike: { optionA: 8, optionB: 5 },
+  tech_boom: { optionA: 7, optionB: 6 },
+  currency_attack: { optionA: 9, optionB: 5 },
+  public_strike_wave: { optionA: 6, optionB: 8 },
+  green_transition_shock: { optionA: 8, optionB: 6 },
 };
 
 const CASE_DIFFICULTY: Record<string, "medium" | "hard" | "very hard"> = {
@@ -245,6 +272,16 @@ const CASE_DIFFICULTY: Record<string, "medium" | "hard" | "very hard"> = {
   climate_damage: "very hard",
   currency_slide: "very hard",
   global_crisis: "very hard",
+  housing_bubble: "hard",
+  supply_chain_freeze: "very hard",
+  tax_revolt: "hard",
+  export_collapse: "hard",
+  pension_gap: "very hard",
+  food_price_spike: "hard",
+  tech_boom: "hard",
+  currency_attack: "very hard",
+  public_strike_wave: "hard",
+  green_transition_shock: "very hard",
 };
 
 const KEYWORDS = {
@@ -264,6 +301,8 @@ const KEYWORDS = {
     "holdbarhed",
   ],
 };
+
+const CORE_CASE_IDS = Object.keys(gameCases);
 
 function includesAny(text: string, words: string[]) {
   return words.some((word) => text.includes(word));
@@ -291,6 +330,9 @@ function normalizeCase(caseId: string): RuntimeGameCase {
     };
   };
 
+  const rawHints = sourceWithOptionalFields.hints ?? [];
+  const safeHints = rawHints.length > 0 ? rawHints : FALLBACK_HINTS;
+
   return {
     id: source.id,
     title: source.title,
@@ -301,7 +343,7 @@ function normalizeCase(caseId: string): RuntimeGameCase {
       "Hvordan bør økonomisk politik reagere i denne situation? Brug makroøkonomisk teori og forklar konsekvenserne for inflation, vækst, arbejdsløshed, tillid og offentlige finanser.",
     timeLimitSeconds:
       sourceWithOptionalFields.timeLimitSeconds ?? DEFAULT_CASE_TIME,
-    hints: sourceWithOptionalFields.hints ?? [],
+    hints: safeHints,
     difficulty: CASE_DIFFICULTY[source.id] ?? "hard",
     options: [
       {
@@ -407,94 +449,112 @@ function buildCritique(reason: string, selectedOption: RuntimeOption): EvalResul
 
   const weakHits = weakPatterns.filter((pattern) => text.includes(pattern));
 
-  let hiddenScore = selectedOption.hiddenPoints;
   const praise: string[] = [];
   const criticism: string[] = [];
   const improvements: string[] = [];
   const directComments: string[] = [];
-  let tradeoffCount = 0;
+
+  const keywordFlags = [
+    seesInflation,
+    seesGrowth,
+    seesUnemployment,
+    seesDebt,
+    seesTrust,
+    seesRates,
+    seesLongTerm,
+  ];
+
+  const keywordCount = keywordFlags.filter(Boolean).length;
+
+  let choiceScore = Math.max(4, Math.min(10, selectedOption.hiddenPoints));
+  let conceptScore = 0;
+  let tradeoffScore = 0;
+  let depthScore = 0;
   let consistencyPenalty = 0;
 
-  if (seesTradeoff) {
-    hiddenScore += 3;
-    tradeoffCount += 1;
-    praise.push("I viser, at I forstår trade-offs og ikke ser økonomisk politik som gratis.");
-    directComments.push("I nævner omkostninger eller risici. Det gør svaret mere troværdigt.");
-  } else {
-    criticism.push("I forklarer ikke tydeligt, hvad jeres valg koster.");
-    improvements.push("Skriv både fordel og ulempe ved jeres løsning.");
-    directComments.push("I argumenterer mest i én retning. Det gør svaret mindre nuanceret.");
-  }
-
   if (seesInflation) {
-    hiddenScore += 1;
-    praise.push("I forholder jer til inflation.");
-    directComments.push("I inddrager inflation, hvilket passer godt til casen.");
+    conceptScore += 1;
+    praise.push("I inddrager inflation.");
   } else {
-    criticism.push("I overser inflationsdimensionen.");
-    improvements.push("Vis hvordan jeres valg påvirker inflation og prisniveau.");
+    criticism.push("I overser inflation.");
+    improvements.push("Forklar hvordan valget påvirker inflation og prisniveau.");
   }
 
   if (seesGrowth) {
-    hiddenScore += 1;
-    praise.push("I kobler jeres valg til vækst og aktivitet.");
+    conceptScore += 1;
+    praise.push("I kobler svaret til vækst og aktivitet.");
   } else {
-    criticism.push("I siger for lidt om vækst og økonomisk aktivitet.");
-    improvements.push("Forklar hvad der sker med vækst, BNP eller aktivitet.");
+    criticism.push("I mangler vækst og aktivitet.");
+    improvements.push("Skriv hvad der sker med BNP, aktivitet eller efterspørgsel.");
   }
 
   if (seesUnemployment) {
-    hiddenScore += 1;
-    praise.push("I inddrager arbejdsmarkedet.");
+    conceptScore += 1;
+    praise.push("I forholder jer til arbejdsmarkedet.");
   } else {
-    criticism.push("I glemmer arbejdsløshed eller beskæftigelse.");
-    improvements.push("Tag stilling til jobs, ledighed eller beskæftigelse.");
+    criticism.push("I glemmer beskæftigelse eller ledighed.");
+    improvements.push("Tag stilling til jobs, beskæftigelse eller arbejdsløshed.");
   }
 
   if (seesDebt) {
-    hiddenScore += 1;
-    praise.push("I har blik for gæld og offentlige finanser.");
+    conceptScore += 1;
+    praise.push("I tager højde for offentlige finanser.");
   } else {
-    criticism.push("I mangler at diskutere budget, underskud eller gæld.");
-    improvements.push("Inddrag de offentlige finanser i jeres argument.");
+    criticism.push("I mangler budget, gæld eller underskud.");
+    improvements.push("Inddrag de offentlige finanser.");
   }
 
   if (seesTrust) {
-    hiddenScore += 2;
-    praise.push("I viser stærk forståelse for markedets tillid og troværdighed.");
-    directComments.push("I kobler valget til troværdighed og markedsreaktioner.");
+    conceptScore += 2;
+    praise.push("I viser forståelse for tillid og troværdighed.");
+    directComments.push("I kobler beslutningen til markedsreaktioner og troværdighed.");
   } else {
-    criticism.push("I overser markedernes eller investorernes reaktion.");
-    improvements.push("Forklar hvordan tillid og troværdighed kan påvirkes.");
+    criticism.push("I overser tillid og troværdighed.");
+    improvements.push("Forklar hvordan markeder og investorer kan reagere.");
   }
 
   if (seesRates) {
-    hiddenScore += 1;
-    praise.push("I kobler svaret til renter eller centralbank.");
+    conceptScore += 2;
+    praise.push("I kobler argumentet til renter eller centralbank.");
   }
 
   if (seesLongTerm) {
-    hiddenScore += 2;
-    praise.push("I løfter svaret ved også at tænke langsigtet.");
+    conceptScore += 2;
+    praise.push("I tænker også langsigtet.");
   } else {
-    criticism.push("Svaret er meget kortsigtet.");
+    criticism.push("Svaret er for kortsigtet.");
     improvements.push("Vis også de langsigtede konsekvenser.");
   }
 
-  if (reason.trim().length > 180) {
-    hiddenScore += 2;
-    praise.push("I uddyber jeres svar grundigt.");
-    directComments.push("I udfolder jeres svar, så argumentationen bliver tydeligere.");
-  } else if (reason.trim().length < 90) {
-    hiddenScore -= 2;
+  conceptScore = Math.min(10, conceptScore);
+
+  if (seesTradeoff) {
+    tradeoffScore = 3;
+    praise.push("I viser trade-offs tydeligt.");
+    directComments.push("I forklarer både gevinster og omkostninger.");
+  } else {
+    criticism.push("I viser ikke tydeligt, hvad jeres valg koster.");
+    improvements.push("Skriv både fordel og ulempe ved jeres løsning.");
+  }
+
+  if (reason.trim().length >= 220) {
+    depthScore = 3;
+    praise.push("I uddyber svaret grundigt.");
+  } else if (reason.trim().length >= 140) {
+    depthScore = 2;
+    praise.push("I giver en rimelig uddybning.");
+  } else if (reason.trim().length >= 90) {
+    depthScore = 1;
+  } else {
+    depthScore = 0;
     criticism.push("Begrundelsen er for kort.");
     improvements.push("Skriv mere udfoldet og præcist.");
-    directComments.push("Jeres svar er så kort, at flere vigtige hensyn mangler.");
+    directComments.push("Svaret er så kort, at flere vigtige hensyn mangler.");
   }
 
   if (weakHits.length > 0) {
-    hiddenScore -= 4;
-    criticism.push("Begrundelsen bliver for overfladisk og for lidt faglig.");
+    consistencyPenalty -= 2;
+    criticism.push("Sproget bliver for løst og for lidt fagligt.");
     improvements.push("Brug færre løse formuleringer og flere fagbegreber.");
   }
 
@@ -503,38 +563,38 @@ function buildCritique(reason: string, selectedOption: RuntimeOption): EvalResul
     text.includes("stimul")
   ) {
     consistencyPenalty -= 2;
-    hiddenScore -= 2;
-    criticism.push("Der er en vis modstrid mellem jeres valgte linje og jeres begrundelse.");
+    criticism.push("Der er modstrid mellem jeres valg og jeres begrundelse.");
     improvements.push("Sørg for at begrundelsen passer klart til det valg, I har taget.");
-    directComments.push("I skriver noget, der peger i en anden retning end det valg, I faktisk tog.");
+    directComments.push("Teksten peger i en anden retning end jeres valgte løsning.");
   }
 
+  const totalScore = Math.max(
+    0,
+    Math.min(26, choiceScore + conceptScore + tradeoffScore + depthScore + consistencyPenalty)
+  );
+
   let level = "svagt";
-  if (hiddenScore >= 15) level = "meget stærkt";
-  else if (hiddenScore >= 11) level = "stærkt";
-  else if (hiddenScore >= 8) level = "fornuftigt";
-  else if (hiddenScore >= 5) level = "usikkert";
+  if (totalScore >= 22) level = "meget stærkt";
+  else if (totalScore >= 17) level = "stærkt";
+  else if (totalScore >= 12) level = "fornuftigt";
+  else if (totalScore >= 8) level = "usikkert";
 
   return {
-    hiddenScore,
+    totalScore,
     level,
     praise,
     criticism,
     improvements,
     directComments,
-    keywordCount: [
-      seesInflation,
-      seesGrowth,
-      seesUnemployment,
-      seesDebt,
-      seesTrust,
-      seesRates,
-      seesLongTerm,
-    ].filter(Boolean).length,
-    tradeoffCount,
+    choiceScore,
+    conceptScore,
+    tradeoffScore,
+    depthScore,
+    consistencyPenalty,
+    keywordCount,
+    tradeoffCount: seesTradeoff ? 1 : 0,
     weakCount: weakHits.length,
     length: reason.trim().length,
-    consistencyPenalty,
   };
 }
 
@@ -545,18 +605,18 @@ function compareToPrevious(current: EvalResult, previous?: HistoryEntry | null) 
 
   const parts: string[] = [];
 
-  if (current.hiddenScore > previous.hiddenScore) {
-    parts.push("Jeres svar er stærkere end sidste gang.");
-  } else if (current.hiddenScore < previous.hiddenScore) {
-    parts.push("Jeres svar er svagere end sidste gang.");
+  if (current.totalScore > previous.hiddenScore) {
+    parts.push("Stærkere end sidst.");
+  } else if (current.totalScore < previous.hiddenScore) {
+    parts.push("Svagere end sidst.");
   } else {
-    parts.push("Jeres svar ligger omtrent på samme niveau som sidste gang.");
+    parts.push("Omtrent samme niveau som sidst.");
   }
 
   if (current.length > previous.reason.length) {
-    parts.push("I uddyber mere end før.");
+    parts.push("Mere udfoldet.");
   } else if (current.length < previous.reason.length) {
-    parts.push("I skriver kortere end sidst.");
+    parts.push("Kortere end sidst.");
   }
 
   return parts.join(" ");
@@ -575,10 +635,10 @@ function buildFinalAssessment(history: HistoryEntry[], finalScore: number, winne
       : 0;
 
   let financeMinisterVerdict = "";
-  if (finalScore >= 380) {
+  if (finalScore >= 520) {
     financeMinisterVerdict =
       "I ville sandsynligvis klare jer stærkt som finansminister. I viser robust dømmekraft, evne til at balancere modstridende mål og relativt høj troværdighed.";
-  } else if (finalScore >= 280) {
+  } else if (finalScore >= 380) {
     financeMinisterVerdict =
       "I ville kunne fungere som finansminister, men med tydelige styrker og svagheder. I træffer flere solide beslutninger, men nogle svar bliver for kortsigtede eller uskarpe.";
   } else {
@@ -600,9 +660,22 @@ function buildFinalAssessment(history: HistoryEntry[], finalScore: number, winne
   };
 }
 
+function pickAlternativeCaseId(recentCaseIds: string[], excludeIds: string[] = []) {
+  const blocked = new Set([...recentCaseIds, ...excludeIds]);
+  const candidates = CORE_CASE_IDS.filter((id) => !blocked.has(id));
+
+  if (candidates.length === 0) {
+    const fallbackCandidates = CORE_CASE_IDS.filter((id) => !excludeIds.includes(id));
+    return fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)] ?? DEFAULT_CASE_ID;
+  }
+
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
 export default function TeamPage() {
   const params = useParams<{ id: string }>();
   const teamCode = String(params?.id ?? "usa01");
+  const timeoutHandledRef = useRef(false);
 
   const [setup, setSetup] = useState<TeamSetup | null>(null);
   const [currentCase, setCurrentCase] = useState<RuntimeGameCase>(
@@ -627,6 +700,18 @@ export default function TeamPage() {
   const [round, setRound] = useState(1);
   const [gameFinished, setGameFinished] = useState(false);
   const [revealedHints, setRevealedHints] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const safeHints = useMemo(() => {
+    if (currentCase.hints && currentCase.hints.length > 0) {
+      return currentCase.hints;
+    }
+    return FALLBACK_HINTS;
+  }, [currentCase.hints]);
+
+  const recentCaseIds = useMemo(() => {
+    return history.slice(-4).map((item) => item.caseId).filter(Boolean) as string[];
+  }, [history]);
 
   useEffect(() => {
     const raw = localStorage.getItem("macro_game_team_setup");
@@ -642,21 +727,39 @@ export default function TeamPage() {
   useEffect(() => {
     setSecondsLeft(currentCase.timeLimitSeconds || DEFAULT_CASE_TIME);
     setRevealedHints(0);
+    setIsPaused(false);
+    setSelectedChoice("");
+    setReason("");
+    timeoutHandledRef.current = false;
+  }, [currentCase.id, currentCase.timeLimitSeconds]);
+
+  useEffect(() => {
+    if (isPaused || showModal || gameFinished || submitted) return;
 
     const timer = setInterval(() => {
       setSecondsLeft((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentCase.id, currentCase.timeLimitSeconds]);
+  }, [isPaused, showModal, gameFinished, submitted, currentCase.id]);
 
-  const selectedOption = useMemo(
-    () => currentCase.options.find((option) => option.id === selectedChoice),
-    [currentCase, selectedChoice]
-  );
+  function handlePauseGame() {
+    if (showModal || gameFinished) return;
+    setIsPaused(true);
+  }
+
+  function handleResumeGame() {
+    if (showModal || gameFinished) return;
+    setIsPaused(false);
+  }
+
+  function togglePauseGame() {
+    if (showModal || gameFinished) return;
+    setIsPaused((prev) => !prev);
+  }
 
   function maybeTriggerCrisis() {
-    const shouldTrigger = Math.random() < 0.28;
+    const shouldTrigger = Math.random() < 0.24;
     if (!shouldTrigger) {
       setActiveCrisis(null);
       return;
@@ -667,7 +770,7 @@ export default function TeamPage() {
   }
 
   function maybeTriggerSurprise() {
-    const shouldTrigger = Math.random() < 0.22;
+    const shouldTrigger = Math.random() < 0.2;
     if (!shouldTrigger) {
       setActiveSurprise(null);
       return;
@@ -682,7 +785,7 @@ export default function TeamPage() {
       prev
         .map((team) => ({
           ...team,
-          score: Math.max(0, Math.min(500, team.score + Math.floor(Math.random() * 11) - 1)),
+          score: Math.max(0, Math.min(900, team.score + Math.floor(Math.random() * 15) - 1)),
           lastAction: [
             "Hæv renten",
             "Målrettet støtte",
@@ -697,30 +800,41 @@ export default function TeamPage() {
   }
 
   function updateOverallMeter(score: number) {
-    if (score >= 380) return "Meget stærk";
-    if (score >= 280) return "Stærk";
-    if (score >= 180) return "Stabil";
-    if (score >= 80) return "Presset";
+    if (score >= 520) return "Meget stærk";
+    if (score >= 380) return "Stærk";
+    if (score >= 240) return "Stabil";
+    if (score >= 120) return "Presset";
     return "Sårbar";
   }
 
   function pickNextCase(baseNextId: string, nextRound: number) {
     const forceNews = nextRound % 3 === 0;
+    const currentId = currentCase.id;
 
-    if (forceNews || Math.random() < 0.25) {
+    if (forceNews || Math.random() < 0.2) {
       const story = dailyStories[Math.floor(Math.random() * dailyStories.length)];
       setNewsBanner(`Aktuel nyhed bruges nu aktivt: ${story.title}`);
       return buildNewsCase(story);
     }
 
+    let candidateId = baseNextId;
+
+    const repeatedTooSoon =
+      recentCaseIds.includes(candidateId) || candidateId === currentId;
+
+    if (repeatedTooSoon) {
+      candidateId = pickAlternativeCaseId(recentCaseIds, [currentId, baseNextId]);
+    }
+
     setNewsBanner(null);
-    return normalizeCase(baseNextId);
+    return normalizeCase(candidateId);
   }
 
   function finishGame() {
     setGameFinished(true);
     setShowModal(false);
     setSubmitted(false);
+    setIsPaused(false);
   }
 
   function continueAfterModal() {
@@ -743,9 +857,35 @@ export default function TeamPage() {
     setNextCasePending(null);
     setSelectedChoice("");
     setReason("");
+    setIsPaused(false);
+    timeoutHandledRef.current = false;
   }
 
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && showModal) {
+        continueAfterModal();
+        return;
+      }
+
+      if (event.key === "Escape" && !showModal && !gameFinished) {
+        togglePauseGame();
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [showModal, gameFinished, nextCasePending, round]);
+
+  const selectedOption = useMemo(
+    () => currentCase.options.find((option) => option.id === selectedChoice),
+    [currentCase, selectedChoice]
+  );
+
   function handleTimeout() {
+    if (timeoutHandledRef.current) return;
+    timeoutHandledRef.current = true;
+
     const penalty = -4;
     const nextCase = pickNextCase("market_panic", round + 1);
 
@@ -753,6 +893,7 @@ export default function TeamPage() {
       ...prev,
       {
         round,
+        caseId: currentCase.id,
         caseTitle: currentCase.title,
         optionTitle: "Intet svar",
         reason: "",
@@ -769,7 +910,7 @@ export default function TeamPage() {
 
     setModalTitle("Evaluering af jeres svar");
     setModalBody(
-      "Kritik: I svarede ikke inden for 8 minutter. Det ligner handlelammelse under pres. I mister derfor samlet styrke i vurderingen. Point denne runde: -4 ud af maks 12 og min -4. Pointlogik: Manglende svar udløser minus, fordi passivitet under usikkerhed også er en økonomisk beslutning."
+      `Vurdering: timeout.\n\nProblem: I svarede ikke inden for tiden.\n\nPoint denne runde: -4.\n\nNæste skridt: Tag hurtigere stilling og skriv en kort, faglig begrundelse med mindst 2 til 3 begreber.`
     );
     setShowModal(true);
     setSubmitted(true);
@@ -779,76 +920,77 @@ export default function TeamPage() {
   }
 
   useEffect(() => {
-    if (secondsLeft === 0 && !submitted && !gameFinished) {
+    if (secondsLeft === 0 && !submitted && !gameFinished && !isPaused && !showModal) {
       handleTimeout();
     }
-  }, [secondsLeft, submitted, gameFinished]);
+  }, [secondsLeft, submitted, gameFinished, isPaused, showModal]);
 
   function handleSubmit() {
-    if (!selectedOption || !reason.trim()) return;
+    if (!selectedOption || !reason.trim() || isPaused || showModal) return;
 
     const previous = history.length > 0 ? history[history.length - 1] : null;
     const critique = buildCritique(reason, selectedOption);
-    const timeoutPenalty = secondsLeft < 60 ? -2 : 0;
-    const hintPenalty = revealedHints > 1 ? -1 : 0;
-    const hiddenRoundScore = critique.hiddenScore + timeoutPenalty + hintPenalty;
+
+    const latePenalty = secondsLeft < 60 ? -2 : 0;
+    const hintPenalty =
+      revealedHints === 0 ? 0 : revealedHints === 1 ? 0 : revealedHints === 2 ? -1 : -2;
+
+    const finalRoundScore = Math.max(
+      0,
+      Math.min(26, critique.totalScore + latePenalty + hintPenalty)
+    );
+
     const nextCase = pickNextCase(selectedOption.next, round + 1);
 
-    const praiseText =
-      critique.praise.length > 0
-        ? `Det gode i jeres svar: ${critique.praise.slice(0, 3).join(" ")}`
-        : "Der er kun få tydelige faglige styrker i svaret endnu.";
+    const topPraise =
+      critique.praise.length > 0 ? critique.praise.slice(0, 2).join(" ") : "Der er enkelte gode takter.";
 
-    const criticismText =
+    const topCriticism =
       critique.criticism.length > 0
-        ? `Kritik: ${critique.criticism.slice(0, 4).join(" ")}`
-        : "Der er ikke tydelige svagheder i jeres svar.";
+        ? critique.criticism.slice(0, 2).join(" ")
+        : "Der er ikke nogen store svagheder i svaret.";
 
-    const improvementText =
+    const topImprovement =
       critique.improvements.length > 0
-        ? `Næste skridt: ${critique.improvements.slice(0, 3).join(" ")}`
-        : "Jeres svar er allerede fagligt ret stærkt.";
+        ? critique.improvements.slice(0, 2).join(" ")
+        : "Prøv næste gang at gøre forklaringen endnu mere præcis.";
 
-    const directFeedbackText =
+    const directText =
       critique.directComments.length > 0
-        ? `Direkte feedback på jeres tekst: ${critique.directComments.slice(0, 3).join(" ")}`
-        : "Der var ikke nok konkrete elementer i teksten til at give mere direkte tekstfeedback.";
+        ? critique.directComments.slice(0, 1).join(" ")
+        : "Teksten kan stadig gøres skarpere.";
 
     const compareText = compareToPrevious(critique, previous);
 
     const timeText =
-      timeoutPenalty < 0
-        ? "I afleverede meget sent i runden, og det svækker den samlede vurdering lidt."
-        : "I afleverede inden for tiden, hvilket styrker jeres samlede beslutningskraft.";
+      latePenalty < 0 ? "Sent svar: -2." : "I afleverede i god tid.";
 
     const hintText =
       revealedHints === 0
-        ? "I klarede jer uden hints."
+        ? "Hints: 0."
         : revealedHints === 1
-        ? "I brugte ét hint."
-        : `I brugte ${revealedHints} hints, hvilket trækker en smule ned i point for selvstændighed.`;
+        ? "Hints: 1, ingen straf."
+        : revealedHints === 2
+        ? "Hints: 2, straf på -1."
+        : `Hints: ${revealedHints}, straf på -2.`;
 
-    const maxPossible = selectedOption.hiddenPoints + 11;
-    const minPossible = Math.max(-4, selectedOption.hiddenPoints - 9);
-
-    const macroFeedbackText = `Makroøkonomisk feedback på valget: ${selectedOption.feedback}`;
-
-    const pointReasonText = `Pointlogik: Jeres valg havde en basisværdi på ${selectedOption.hiddenPoints}. I blev løftet, hvis I brugte fagbegreber som inflation, vækst, arbejdsløshed, gæld, tillid eller renter. I blev også løftet, hvis I viste trade-offs, konsekvenser og langsigtede effekter. I blev trukket ned, hvis svaret var for kort, for overfladisk, internt modstridende, afleveret sent eller byggede meget på hints. Point denne runde: ${hiddenRoundScore}. Maks i denne runde: ${maxPossible}. Min i denne runde: ${minPossible}.`;
+    const pointReasonText = `Point: valg ${critique.choiceScore}/10, faglighed ${critique.conceptScore}/10, trade-off ${critique.tradeoffScore}/3, dybde ${critique.depthScore}/3, konsistens ${critique.consistencyPenalty}, tid ${latePenalty}, hints ${hintPenalty}. Slutscore: ${finalRoundScore}/26.`;
 
     setHistory((prev) => [
       ...prev,
       {
         round,
+        caseId: currentCase.id,
         caseTitle: currentCase.title,
         optionTitle: selectedOption.title,
         reason,
         level: critique.level,
-        hiddenScore: hiddenRoundScore,
+        hiddenScore: finalRoundScore,
       },
     ]);
 
     setTeamScore((prev) => {
-      const next = prev + hiddenRoundScore;
+      const next = prev + finalRoundScore;
       setOverallMeter(updateOverallMeter(next));
       return next;
     });
@@ -859,7 +1001,7 @@ export default function TeamPage() {
 
     setModalTitle("Evaluering af jeres svar");
     setModalBody(
-      `I valgte: "${selectedOption.title}". I skrev: "${reason}". Vurdering: Jeres svar vurderes som ${critique.level}. ${praiseText} ${criticismText} ${macroFeedbackText} ${directFeedbackText} ${improvementText} Sammenligning: ${compareText} ${timeText} ${hintText} ${pointReasonText}`
+      `Vurdering: ${critique.level}.\n\nDet fungerede: ${topPraise}\n\nDet mangler: ${topCriticism}\n\nDirekte feedback: ${directText}\n\nNæste skridt: ${topImprovement}\n\nMakrofeedback på valget: ${selectedOption.feedback}\n\nSammenligning: ${compareText}\n\n${timeText}\n${hintText}\n\n${pointReasonText}`
     );
     setShowModal(true);
     setSubmitted(true);
@@ -898,7 +1040,7 @@ export default function TeamPage() {
                 <p>Stærke runder: {finalAssessment.strongRounds}</p>
                 <p>Svage runder: {finalAssessment.weakRounds}</p>
                 <p>Gennemsnitlig rundescore: {finalAssessment.avgScore}</p>
-                <p>Format: 22 cases á 8 minutter</p>
+                <p>Format: {TOTAL_ROUNDS} cases á 8 minutter</p>
                 <p>Planlagt intro: {INTRO_MINUTES} minutter</p>
               </div>
             </div>
@@ -909,26 +1051,6 @@ export default function TeamPage() {
               </h2>
               <p className="leading-8 text-slate-300">
                 {finalAssessment.financeMinisterVerdict}
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
-            <h2 className="mb-4 text-2xl font-semibold">Hvorfor fik I de point, I gjorde?</h2>
-            <div className="space-y-4 text-slate-300">
-              <p>
-                Jeres point blev skabt af en kombination af strategiske valg og kvaliteten af jeres
-                begrundelser. Hver runde havde en basisværdi ud fra, hvor makroøkonomisk holdbart
-                valget var i situationen.
-              </p>
-              <p>
-                I blev løftet, når I arbejdede med inflation, vækst, arbejdsløshed, gæld,
-                troværdighed, renter og langsigtede konsekvenser på samme tid. I blev især belønnet,
-                når I viste tydelige trade-offs.
-              </p>
-              <p>
-                I blev trukket ned, når svarene blev for korte, for politiske uden økonomisk
-                substans, eller når begrundelsen ikke passede til det valg, I faktisk tog.
               </p>
             </div>
           </div>
@@ -976,20 +1098,70 @@ export default function TeamPage() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(180,140,40,0.18),_transparent_30%),linear-gradient(180deg,_#09111f_0%,_#0b1324_35%,_#050913_100%)] p-8 text-white">
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
-          <div className="w-full max-w-3xl rounded-3xl border border-amber-700 bg-slate-950 p-6 shadow-2xl">
-            <div className="mb-2 text-xs uppercase tracking-widest text-amber-300">
-              Feedback
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={continueAfterModal}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-3xl border border-amber-700 bg-slate-950 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-4">
+              <div>
+                <div className="mb-2 text-xs uppercase tracking-widest text-amber-300">
+                  Feedback
+                </div>
+                <h2 className="text-2xl font-bold">{modalTitle}</h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={continueAfterModal}
+                aria-label="Luk feedback"
+                className="shrink-0 rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+              >
+                Luk
+              </button>
             </div>
-            <h2 className="mb-4 text-2xl font-bold">{modalTitle}</h2>
-            <p className="leading-8 text-slate-200">{modalBody}</p>
+
+            <div className="max-h-[calc(85vh-140px)] overflow-y-auto px-6 py-4">
+              <p className="whitespace-pre-wrap leading-7 text-slate-200">{modalBody}</p>
+            </div>
+
+            <div className="border-t border-slate-800 px-6 py-4">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={continueAfterModal}
+                  className="rounded-2xl bg-amber-400 px-5 py-3 font-semibold text-slate-950 hover:bg-amber-300"
+                >
+                  Videre til næste case
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPaused && !showModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-xl rounded-3xl border border-amber-700 bg-slate-950 p-6 shadow-2xl">
+            <div className="mb-2 text-xs uppercase tracking-widest text-amber-300">
+              Pause
+            </div>
+            <h2 className="mb-3 text-2xl font-bold">Spillet er sat på pause</h2>
+            <p className="leading-7 text-slate-300">
+              Timeren er stoppet. I kan tale sammen, men I kan ikke vælge svar, bruge hints
+              eller sende noget, før spillet fortsætter.
+            </p>
 
             <div className="mt-6 flex justify-end">
               <button
-                onClick={continueAfterModal}
+                type="button"
+                onClick={handleResumeGame}
                 className="rounded-2xl bg-amber-400 px-5 py-3 font-semibold text-slate-950 hover:bg-amber-300"
               >
-                Videre til næste case
+                Fortsæt spillet
               </button>
             </div>
           </div>
@@ -1013,26 +1185,44 @@ export default function TeamPage() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <div className="rounded-2xl border border-slate-700 bg-slate-900/80 px-4 py-3 text-lg font-semibold text-slate-100">
                 Runde {round}/{TOTAL_ROUNDS}
               </div>
+
               <div
                 className={`rounded-2xl border px-4 py-3 text-lg font-semibold ${
-                  secondsLeft < 60
+                  isPaused
+                    ? "border-amber-600 bg-amber-950/60 text-amber-200"
+                    : secondsLeft < 60
                     ? "border-red-700 bg-red-950/60 text-red-200"
                     : "border-slate-700 bg-slate-900/80 text-amber-300"
                 }`}
               >
-                Tid tilbage: {formatTime(secondsLeft)}
+                {isPaused ? "Pause" : `Tid tilbage: ${formatTime(secondsLeft)}`}
               </div>
+
+              <button
+                type="button"
+                onClick={togglePauseGame}
+                disabled={showModal || gameFinished}
+                className="rounded-2xl border border-amber-500 px-4 py-3 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-40"
+              >
+                {isPaused ? "Fortsæt" : "Pause"}
+              </button>
             </div>
           </div>
 
           <p className="mb-4 text-slate-300">
             I har 8 minutter pr. case. Aktuelle nyheder og uforudsete hændelser kan bryde ind
-            undervejs. Hele spillet er planlagt til 22 cases á 8 minutter, plus 4 minutters intro.
+            undervejs. Hele spillet er planlagt til {TOTAL_ROUNDS} cases á 8 minutter, plus {INTRO_MINUTES} minutters intro.
           </p>
+
+          {isPaused && (
+            <div className="mb-4 rounded-2xl border border-amber-700 bg-amber-950/30 p-4 text-amber-100">
+              Spillet er sat på pause. Timeren står stille, indtil I trykker fortsæt.
+            </div>
+          )}
 
           {newsBanner && (
             <div className="mb-6 rounded-2xl border border-blue-700 bg-blue-950/30 p-4 text-blue-100">
@@ -1098,19 +1288,29 @@ export default function TeamPage() {
             </div>
           </div>
 
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
+            {FOCUS_GUIDE.map((item) => (
+              <div
+                key={item}
+                className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-200"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+
           <div className="mb-6 rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Hints</h2>
               <button
+                type="button"
                 onClick={() =>
-                  setRevealedHints((prev) =>
-                    prev < currentCase.hints.length ? prev + 1 : prev
-                  )
+                  setRevealedHints((prev) => (prev < safeHints.length ? prev + 1 : prev))
                 }
-                disabled={revealedHints >= currentCase.hints.length}
-                className="rounded-2xl border border-amber-500 px-4 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:opacity-40"
+                disabled={revealedHints >= safeHints.length || isPaused}
+                className="rounded-2xl border border-amber-500 px-4 py-2 font-semibold text-amber-300 hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Vis næste hint
+                {revealedHints >= safeHints.length ? "Alle hints vist" : "Vis næste hint"}
               </button>
             </div>
 
@@ -1120,7 +1320,7 @@ export default function TeamPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {currentCase.hints.slice(0, revealedHints).map((hint, index) => (
+                {safeHints.slice(0, revealedHints).map((hint, index) => (
                   <div
                     key={`${currentCase.id}-hint-${index}`}
                     className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-slate-200"
@@ -1135,13 +1335,15 @@ export default function TeamPage() {
           <div className="mb-6 grid gap-4 md:grid-cols-2">
             {currentCase.options.map((option) => (
               <button
+                type="button"
                 key={option.id}
                 onClick={() => setSelectedChoice(option.id)}
+                disabled={isPaused}
                 className={`rounded-3xl border p-6 text-left transition ${
                   selectedChoice === option.id
                     ? "border-amber-400 bg-amber-400/10 ring-1 ring-amber-300/40"
                     : "border-slate-700 bg-slate-900/70 hover:border-amber-500 hover:bg-slate-800/90"
-                }`}
+                } ${isPaused ? "cursor-not-allowed opacity-50" : ""}`}
               >
                 <h3 className="mb-2 text-lg font-semibold">{option.title}</h3>
                 <p className="text-slate-300">{option.text}</p>
@@ -1154,14 +1356,16 @@ export default function TeamPage() {
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="min-h-40 w-full rounded-3xl border border-slate-700 bg-slate-950/80 p-4 text-white"
+              disabled={isPaused}
+              className="min-h-40 w-full rounded-3xl border border-slate-700 bg-slate-950/80 p-4 text-white disabled:opacity-50"
               placeholder="Forklar jeres valg fagligt. Brug gerne inflation, vækst, arbejdsløshed, gæld, tillid, renter, trade-offs og langsigtede konsekvenser."
             />
           </div>
 
           <button
+            type="button"
             onClick={handleSubmit}
-            disabled={!selectedChoice || !reason.trim() || secondsLeft === 0}
+            disabled={!selectedChoice || !reason.trim() || secondsLeft === 0 || isPaused}
             className="rounded-3xl bg-amber-400 px-6 py-3 font-semibold text-slate-950 shadow-lg hover:bg-amber-300 disabled:opacity-50"
           >
             Send svar
