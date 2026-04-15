@@ -3,7 +3,8 @@ export type GameCase = {
   title: string;
   description: string;
   theme: string;
-  macroQuestion: string;
+  customerGoal: string;
+  bankQuestion: string;
   timeLimitSeconds: number;
   hints: string[];
   optionA: {
@@ -23,803 +24,399 @@ export type GameCase = {
 };
 
 export const gameCases: Record<string, GameCase> = {
-  intro_inflation: {
-    id: "intro_inflation",
-    title: "Inflationen bider stadig",
+  first_home: {
+    id: "first_home",
+    title: "Unge købere vil have boliglån",
     description:
-      "Centralbanken er presset. Inflation er stadig høj, men væksten er svag. Hvad gør I?",
-    theme: "inflation",
-    macroQuestion:
-      "Hvordan bør økonomien reagere, når inflationen er høj samtidig med, at væksten er svag? Brug makroøkonomisk teori i jeres vurdering.",
+      "Et ungt par vil købe en ejerlejlighed til 2,8 mio. kr. De tjener samlet 52.000 kr. før skat om måneden. De har 120.000 kr. i opsparing og et billån med ydelse på 3.200 kr. om måneden.",
+    theme: "boliglån",
+    customerGoal: "Kunden vil købe sin første bolig.",
+    bankQuestion:
+      "Bør banken sige ja, nej eller ja med betingelser? Forklar med fokus på rådighedsbeløb, opsparing, gæld og risiko.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på pengepolitik og samlet efterspørgsel.",
-      "Hvordan påvirker en rentestigning forbrug og investeringer?",
-      "Overvej konflikten mellem inflation og arbejdsløshed.",
+      "Se på udbetalingen i forhold til boligprisen.",
+      "Se på deres eksisterende gæld og månedlige ydelse.",
+      "Banken ser både på løn, rådighedsbeløb og robusthed.",
     ],
     optionA: {
-      id: "rente",
-      title: "Hæv renten",
-      text: "Dæmp inflationen, men risiko for lavere vækst og højere arbejdsløshed.",
-      next: "labor_pressure",
+      id: "first_home_a",
+      title: "Ja, men kun med betingelser",
+      text: "Banken er positiv, men vil kræve stærkere økonomi eller mere opsparing.",
+      next: "car_loan_apprentice",
       feedback:
-        "Dette valg svarer til kontraktiv pengepolitik. En højere rente dæmper forbrug og investeringer, reducerer samlet efterspørgsel og kan derfor dæmpe inflationen. Til gengæld kan BNP-væksten falde, og arbejdsløsheden kan stige.",
+        "Det er ofte en realistisk bankbeslutning. Kunden har indkomst, men opsparingen er begrænset, og billånet presser økonomien. Banken vil ofte stille krav før et endeligt ja.",
     },
     optionB: {
-      id: "stimulus",
-      title: "Stimuler økonomien",
-      text: "Beskyt jobs, men risiko for mere inflation og større gæld.",
-      next: "debt_doubt",
+      id: "first_home_b",
+      title: "Nej, ikke endnu",
+      text: "Banken vurderer, at økonomien er for presset lige nu.",
+      next: "debt_consolidation",
       feedback:
-        "Dette valg svarer til ekspansiv økonomisk politik. Det kan støtte beskæftigelse og aktivitet på kort sigt, men når inflationen allerede er høj, kan ekstra efterspørgsel forstærke prisstigningerne og øge den offentlige gæld.",
+        "Det kan også være en fagligt rimelig beslutning, hvis rådighedsbeløbet er for stramt eller risikoen vurderes som for høj. Banken skal kunne forklare afslaget tydeligt.",
     },
   },
 
-  labor_pressure: {
-    id: "labor_pressure",
-    title: "Arbejdsløsheden stiger",
+  car_loan_apprentice: {
+    id: "car_loan_apprentice",
+    title: "Lærling vil låne til bil",
     description:
-      "Jeres stramme linje dæmpede prispresset, men flere virksomheder holder igen. Hvad gør I nu?",
-    theme: "arbejdsmarked",
-    macroQuestion:
-      "Hvordan bør staten reagere, når arbejdsløsheden stiger efter en stram pengepolitik? Brug makroøkonomisk teori om arbejdsmarked, efterspørgsel og stabiliseringspolitik.",
+      "En lærling vil låne 180.000 kr. til en bil. Kunden tjener 19.500 kr. før skat om måneden, bor til leje og har ingen opsparing. Kunden siger, at bilen er nødvendig for at komme på arbejde.",
+    theme: "billån",
+    customerGoal: "Kunden vil købe bil for at kunne passe job og transport.",
+    bankQuestion:
+      "Bør banken godkende billånet, afvise det eller foreslå en anden løsning? Forklar med fokus på betalingsevne, opsparing og risiko.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på sammenhængen mellem efterspørgsel og beskæftigelse.",
-      "Hvordan påvirker støtteordninger virksomhedernes aktivitet?",
-      "Overvej kortsigtet hjælp mod langsigtet inflationskontrol.",
+      "Se på kundens indkomst og manglende opsparing.",
+      "Tænk på om bilen er nødvendig eller bare ønsket.",
+      "En bank kan godt foreslå et lavere lånebeløb eller en billigere løsning.",
     ],
     optionA: {
-      id: "help_business",
-      title: "Hjælp udsatte virksomheder",
-      text: "Beskyt arbejdspladser, men det kan belaste budgettet.",
-      next: "budget_strain",
+      id: "car_loan_apprentice_a",
+      title: "Ja, men kun til en billigere løsning",
+      text: "Banken vil måske hjælpe, men ikke nødvendigvis til den ønskede bil.",
+      next: "self_employed_van",
       feedback:
-        "Dette valg er ekspansiv finanspolitik rettet mod arbejdsmarkedet. Støtte til virksomheder kan holde beskæftigelsen oppe og dæmpe stigningen i arbejdsløshed. Ulempen er, at det kan øge de offentlige udgifter og gøre det sværere at holde inflationen nede.",
+        "Det er ofte en stærk beslutning, fordi banken anerkender behovet, men samtidig reducerer risikoen ved at foreslå et mindre lån eller billigere bil.",
     },
     optionB: {
-      id: "stay_hard",
-      title: "Fasthold den stramme linje",
-      text: "Hold inflationen nede, men risiko for social uro.",
-      next: "social_unrest",
+      id: "car_loan_apprentice_b",
+      title: "Nej, økonomien er for svag",
+      text: "Banken vil ikke tage risikoen nu.",
+      next: "missing_documents",
       feedback:
-        "Dette valg prioriterer inflationsbekæmpelse over beskæftigelse. Hvis den stramme linje fastholdes, kan prispresset falde yderligere, men lavere efterspørgsel kan også føre til højere arbejdsløshed og svagere vækst.",
+        "Det kan være rimeligt, hvis kundens økonomi er for stram, og der ikke er nogen buffer. Banken skal dog kunne forklare, hvad kunden konkret skal forbedre for senere at kunne låne.",
     },
   },
 
-  debt_doubt: {
-    id: "debt_doubt",
-    title: "Gælden vokser",
+  debt_consolidation: {
+    id: "debt_consolidation",
+    title: "Kunde vil samle dyr gæld",
     description:
-      "Jeres hjælpepakker løftede aktiviteten, men markedet begynder at tvivle på jeres økonomiske disciplin. Hvad gør I nu?",
-    theme: "gæld",
-    macroQuestion:
-      "Hvordan bør staten reagere, når ekspansiv politik har øget aktiviteten, men også skabt tvivl om gældens holdbarhed? Brug teori om offentlig gæld, tillid og finanspolitik.",
+      "En kunde har tre forbrugslån og to kreditkort med høj rente. Samlet gæld er 215.000 kr. Kunden tjener 36.000 kr. før skat og har fast arbejde, men har tidligere haft overtræk flere gange.",
+    theme: "samlelån",
+    customerGoal: "Kunden vil samle gælden og få lavere månedlig ydelse.",
+    bankQuestion:
+      "Bør banken sige ja til samlelån, nej eller kun ja med tydelige krav? Forklar med fokus på betalingshistorik, rådighedsbeløb og risiko.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på forholdet mellem underskud, gæld og troværdighed.",
-      "Hvordan reagerer investorer, når de mister tillid?",
-      "Overvej kortsigtet vækst mod langsigtet holdbarhed.",
+      "Samlelån kan hjælpe, men løser ikke altid dårlige vaner.",
+      "Se på kundens historik, ikke kun den nuværende løn.",
+      "Banken vil ofte kræve budget og bedre økonomisk adfærd.",
     ],
     optionA: {
-      id: "save_plan",
-      title: "Start en spareplan",
-      text: "Skab tillid, men risiko for at bremse væksten hurtigt.",
-      next: "growth_slump",
+      id: "debt_consolidation_a",
+      title: "Ja, men med klare krav",
+      text: "Banken hjælper kun, hvis kunden samtidig ændrer økonomisk adfærd.",
+      next: "energy_renovation",
       feedback:
-        "Dette valg er kontraktiv finanspolitik. En spareplan kan forbedre statens troværdighed og dæmpe bekymringer om gælden. Ulempen er, at lavere offentligt forbrug eller højere skatter kan reducere samlet efterspørgsel og svække væksten.",
+        "Det er ofte en stærk løsning. Et samlelån kan give bedre overblik, men banken skal sikre, at kunden ikke bare fortsætter samme mønster bagefter.",
     },
     optionB: {
-      id: "continue_support",
-      title: "Fortsæt støtten",
-      text: "Beskyt væksten nu, men risiko for mere inflation og gæld.",
-      next: "market_panic",
+      id: "debt_consolidation_b",
+      title: "Nej, risikoen er stadig for høj",
+      text: "Banken vurderer, at kundens historik vejer for tungt lige nu.",
+      next: "overdraft_customer",
       feedback:
-        "Dette valg holder aktiviteten oppe gennem fortsat ekspansiv finanspolitik. Det kan begrænse fald i BNP og beskæftigelse på kort sigt, men det øger risikoen for højere gæld, inflation og svækket tillid på finansmarkederne.",
+        "Det kan være rigtigt, hvis overtræk, svag historik og usikker adfærd giver for stor risiko. Banken skal dog forklare, hvad kunden skal ændre for at blive mere kreditværdig.",
     },
   },
 
-  budget_strain: {
-    id: "budget_strain",
-    title: "Budgettet er under pres",
+  self_employed_van: {
+    id: "self_employed_van",
+    title: "Selvstændig vil låne til varebil",
     description:
-      "Flere støtteordninger hjælper kortsigtet, men finansministeriet advarer om voksende underskud.",
-    theme: "finanspolitik",
-    macroQuestion:
-      "Hvordan bør staten reagere, når støtteordninger presser de offentlige finanser? Brug makroøkonomisk teori om budgetunderskud, gæld og stabiliseringspolitik.",
+      "En selvstændig elektriker vil låne 260.000 kr. til en varebil. Virksomheden har haft stigende omsætning de seneste to år, men indkomsten svinger fra måned til måned. Kunden har 80.000 kr. i opsparing.",
+    theme: "erhvervslån",
+    customerGoal: "Kunden vil finansiere varebil for at kunne tage flere opgaver.",
+    bankQuestion:
+      "Bør banken sige ja, nej eller ja med ekstra dokumentation? Forklar med fokus på svingende indkomst, dokumentation og sikkerhed.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på forskellen mellem kortsigtet stabilisering og langsigtet holdbarhed.",
-      "Hvordan påvirker offentlige underskud økonomiens troværdighed?",
-      "Overvej effekten på vækst og renter.",
+      "Selvstændige vurderes ofte hårdere på dokumentation.",
+      "Se på regnskab, budget og udsving.",
+      "Tænk på om bilen skaber værdi for virksomheden.",
     ],
     optionA: {
-      id: "cut_spending",
-      title: "Skær i udgifterne",
-      text: "Vis ansvarlighed, men risiko for politisk modstand.",
-      next: "election_pressure",
+      id: "self_employed_van_a",
+      title: "Ja, men kun med ekstra dokumentation",
+      text: "Banken er positiv, men vil se regnskab, budget og robusthed.",
+      next: "cafe_startup",
       feedback:
-        "Dette valg er kontraktiv finanspolitik. Lavere offentlige udgifter kan forbedre budgetbalancen og dæmpe gældsopbygningen. Til gengæld kan det reducere samlet efterspørgsel og svække vækst og beskæftigelse på kort sigt.",
+        "Det er ofte den bedste bankbeslutning. Kunden kan have et fornuftigt projekt, men banken vil næsten altid kræve ekstra dokumentation, når indkomsten svinger.",
     },
     optionB: {
-      id: "borrow_more",
-      title: "Lån mere",
-      text: "Køb tid, men gør økonomien mere sårbar senere.",
-      next: "bond_selloff",
+      id: "self_employed_van_b",
+      title: "Nej, indkomsten er for usikker",
+      text: "Banken vil ikke låne ud nu.",
+      next: "missing_documents",
       feedback:
-        "Dette valg udsætter tilpasningen ved at finansiere underskud med mere gæld. Det kan holde hånden under aktiviteten nu, men højere gæld kan øge rentebyrden og gøre staten mere sårbar over for stigende renter og mistillid fra investorer.",
+        "Det kan være en forsvarlig beslutning, hvis dokumentationen er for svag eller udsvingene for store. Banken bør dog tydeligt forklare, hvilke tal der mangler.",
     },
   },
 
-  social_unrest: {
-    id: "social_unrest",
-    title: "Vreden vokser i gaderne",
+  energy_renovation: {
+    id: "energy_renovation",
+    title: "Familie vil låne til energirenovering",
     description:
-      "Høj arbejdsløshed og svag vækst skaber protester. Medierne spørger, om I har været for hårde.",
-    theme: "social uro",
-    macroQuestion:
-      "Hvordan bør økonomisk politik reagere, når høj arbejdsløshed skaber social uro? Brug teori om beskæftigelse, efterspørgsel og finanspolitik.",
+      "En familie vil låne 300.000 kr. til nye vinduer, varmepumpe og isolering. De ejer allerede huset og har fast indkomst. De har moderat opsparing og ingen forbrugsgæld.",
+    theme: "boligforbedring",
+    customerGoal: "Kunden vil forbedre bolig og sænke fremtidige energiudgifter.",
+    bankQuestion:
+      "Bør banken sige ja, nej eller ja med betingelser? Forklar med fokus på boligværdi, betalingsevne og langsigtet risiko.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på sammenhængen mellem arbejdsløshed og social stabilitet.",
-      "Hvordan påvirker støtte til husholdninger privatforbruget?",
-      "Overvej risikoen for at øge budgetunderskuddet.",
+      "Tænk på om lånet forbedrer boligens værdi eller økonomi.",
+      "Se på gæld, opsparing og faste indkomster.",
+      "Banken vurderer stadig risiko, selv når formålet virker fornuftigt.",
     ],
     optionA: {
-      id: "support_households",
-      title: "Støt husholdningerne",
-      text: "Dæmp presset, men det koster på budgettet.",
-      next: "budget_strain",
+      id: "energy_renovation_a",
+      title: "Ja, det virker fornuftigt",
+      text: "Banken kan være positiv, hvis familiens økonomi hænger sammen.",
+      next: "new_graduate_andel",
       feedback:
-        "Dette valg kan øge husholdningernes disponible indkomst og støtte privatforbruget. Det kan dæmpe faldet i efterspørgslen og begrænse arbejdsløshed, men det presser samtidig de offentlige finanser og kan gøre det sværere at reducere underskuddet.",
+        "Det er ofte en stærk beslutning, fordi formålet er fornuftigt, og projektet kan forbedre bolig og økonomi. Banken skal stadig sikre, at familien kan bære lånet.",
     },
     optionB: {
-      id: "hold_course",
-      title: "Hold kursen",
-      text: "Signalér fasthed, men risiko for mere vrede og faldende tillid.",
-      next: "election_pressure",
+      id: "energy_renovation_b",
+      title: "Ja, men kun med lavere beløb",
+      text: "Banken vil begrænse risikoen og kræve mere egenbetaling.",
+      next: "divorce_refinance",
       feedback:
-        "Dette valg holder fast i en stram stabiliseringslinje. Det kan styrke troværdigheden i økonomisk politik, men hvis arbejdsløsheden forbliver høj, kan det svække efterspørgslen yderligere og forværre de sociale og økonomiske problemer.",
+        "Det kan være en god løsning, hvis banken vil støtte projektet, men samtidig holde risikoen nede. Det er ofte lettere at forklare end et rent afslag.",
     },
   },
 
-  growth_slump: {
-    id: "growth_slump",
-    title: "Væksten går i stå",
+  cafe_startup: {
+    id: "cafe_startup",
+    title: "Kunde vil låne til café",
     description:
-      "Virksomhederne investerer mindre, og forbrugerne bliver mere forsigtige. Hvad prioriterer I?",
-    theme: "vækst",
-    macroQuestion:
-      "Hvordan bør staten stimulere en økonomi med svag vækst og lav investeringslyst? Brug teori om efterspørgsel, investeringer og finanspolitik.",
+      "En kunde vil låne 600.000 kr. til at åbne café. Kunden har brancheerfaring, men har aldrig drevet egen virksomhed før. Kunden har 70.000 kr. i opsparing og et foreløbigt budget.",
+    theme: "iværksætteri",
+    customerGoal: "Kunden vil starte egen café.",
+    bankQuestion:
+      "Bør banken sige ja, nej eller ja med store forbehold? Forklar med fokus på risiko, dokumentation, egenkapital og drift.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på hvad der driver BNP i efterspørgselsmodellen.",
-      "Hvordan påvirker offentlige investeringer aktiviteten?",
-      "Overvej forskellen på skattelettelser og offentlige investeringer.",
+      "Iværksætteri giver ofte højere risiko end almindelige privatlån.",
+      "Se på egenkapital og dokumentation.",
+      "Banken vurderer både kunden og projektet.",
     ],
     optionA: {
-      id: "public_investment",
-      title: "Offentlige investeringer",
-      text: "Løft aktiviteten, men øg presset på de offentlige finanser.",
-      next: "energy_shock",
+      id: "cafe_startup_a",
+      title: "Nej, risikoen er for høj lige nu",
+      text: "Banken vurderer, at projektet er for usikkert i den nuværende form.",
+      next: "debt_consolidation",
       feedback:
-        "Dette valg er ekspansiv finanspolitik gennem offentlige investeringer. Det kan øge samlet efterspørgsel direkte og samtidig forbedre produktiviteten på længere sigt. Ulempen er højere offentlige udgifter og mulig forværring af budgetbalancen.",
+        "Det er ofte den stærkeste bankbeslutning, når egenkapitalen er lav, dokumentationen usikker og projektet endnu ikke robust nok.",
     },
     optionB: {
-      id: "tax_cuts",
-      title: "Sænk skatterne",
-      text: "Skab aktivitet, men usikker effekt og færre indtægter.",
-      next: "trade_break",
+      id: "cafe_startup_b",
+      title: "Ja, men kun med meget mere dokumentation",
+      text: "Banken er kun åben, hvis kunden løfter projektet markant.",
+      next: "small_business_growth",
       feedback:
-        "Dette valg øger husholdningers og virksomheders disponible midler og kan stimulere privatforbrug og investeringer. Effekten afhænger dog af, om de faktisk bruger pengene. Samtidig falder statens indtægter, hvilket kan øge underskuddet.",
+        "Det kan være rimeligt, hvis banken ser potentiale, men kræver detaljeret budget, omsætningsforventninger og større egenbetaling, før noget godkendes.",
     },
   },
 
-  market_panic: {
-    id: "market_panic",
-    title: "Markederne bliver nervøse",
+  new_graduate_andel: {
+    id: "new_graduate_andel",
+    title: "Nyuddannet vil købe andel",
     description:
-      "Renterne på jeres statsobligationer stiger, og investorerne tvivler på jeres troværdighed.",
-    theme: "finansmarked",
-    macroQuestion:
-      "Hvordan bør staten reagere, når investorer mister tillid, og obligationsrenterne stiger? Brug teori om troværdighed, statsfinanser og finansielle markeder.",
+      "En nyuddannet kunde har fået fast job og vil købe andelsbolig. Kunden har løn på 34.000 kr. før skat, studiegæld på 145.000 kr. og opsparing på 90.000 kr.",
+    theme: "andel",
+    customerGoal: "Kunden vil købe andelsbolig hurtigt efter studiet.",
+    bankQuestion:
+      "Bør banken sige ja, nej eller ja med betingelser? Forklar med fokus på stabil indkomst, studiegæld og buffer.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på hvorfor obligationsrenter stiger.",
-      "Hvordan påvirker tillid statens låneomkostninger?",
-      "Overvej konflikten mellem vækst og budgetdisciplin.",
+      "Fast job tæller positivt, men studiegæld tæller også.",
+      "Tænk på hvor robust økonomien er efter køb.",
+      "Banken vil gerne se, om kunden stadig har luft i budgettet bagefter.",
     ],
     optionA: {
-      id: "restore_trust",
-      title: "Genopret tillid",
-      text: "Vis budgetdisciplin og ro på markederne.",
-      next: "growth_slump",
+      id: "new_graduate_andel_a",
+      title: "Ja, men kun hvis budgettet holder",
+      text: "Banken er forsigtigt positiv, men vil være sikker på luft i økonomien.",
+      next: "missing_documents",
       feedback:
-        "Dette valg søger at sænke risikopræmien på statens gæld ved at signalere ansvarlig finanspolitik. Hvis troværdigheden genoprettes, kan renterne falde. Ulempen er, at stram finanspolitik kan dæmpe væksten yderligere.",
+        "Det er ofte den rigtige banktilgang. Kunden har noget, der taler for, men banken skal sikre, at studiegæld og boligudgifter ikke samlet bliver for tunge.",
     },
     optionB: {
-      id: "defend_growth",
-      title: "Forsvar væksten",
-      text: "Bevar aktiviteten, men markedet kan straffe jer hårdere.",
-      next: "bond_selloff",
+      id: "new_graduate_andel_b",
+      title: "Nej, ikke endnu",
+      text: "Banken vil se længere historik og mere økonomisk buffer først.",
+      next: "car_loan_apprentice",
       feedback:
-        "Dette valg prioriterer realøkonomien her og nu, men hvis markederne allerede er nervøse, kan fortsat ekspansion øge mistilliden. Det kan føre til endnu højere renter, større rentebetalinger og svagere finanspolitisk holdbarhed.",
+        "Det kan være rimeligt, hvis budgettet er for stramt eller banken vurderer, at kunden er for sårbar kort efter jobstart.",
     },
   },
 
-  election_pressure: {
-    id: "election_pressure",
-    title: "Valgår og folkelig vrede",
+  divorce_refinance: {
+    id: "divorce_refinance",
+    title: "Kunde efter skilsmisse vil blive boende",
     description:
-      "Valget nærmer sig. Presset stiger for at love hurtige forbedringer, selv om økonomien er skrøbelig.",
-    theme: "politik",
-    macroQuestion:
-      "Hvordan bør økonomisk politik håndtere presset for populære løsninger i et valgår? Brug teori om politisk konjunkturpolitik, gæld og inflation.",
+      "En kunde vil overtage huset efter skilsmisse og bede banken om at omlægge lånene alene. Kunden har fast indkomst, to børn og begrænset økonomisk buffer.",
+    theme: "omlægning",
+    customerGoal: "Kunden vil blive boende i huset alene.",
+    bankQuestion:
+      "Bør banken acceptere omlægningen, afvise den eller kræve ændringer? Forklar med fokus på rådighedsbeløb, robusthed og risiko.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på forskellen mellem politisk gevinst og økonomisk holdbarhed.",
-      "Hvordan påvirker lempelig politik inflation og gæld?",
-      "Overvej troværdighed på længere sigt.",
+      "Se på om én indkomst kan bære huset alene.",
+      "Tænk på børn, faste udgifter og buffer.",
+      "Banken skal se på den fremtidige bæreevne, ikke kun ønsket om at blive boende.",
     ],
     optionA: {
-      id: "popular_relief",
-      title: "Lov hurtige lettelser",
-      text: "Vælg populær politik, men risiko for større gæld og inflation.",
-      next: "energy_shock",
+      id: "divorce_refinance_a",
+      title: "Ja, men kun med stramt budget og sikkerhed",
+      text: "Banken kan være positiv, hvis økonomien stadig hænger sammen alene.",
+      next: "overdraft_customer",
       feedback:
-        "Dette valg er politisk attraktivt, fordi det kan øge efterspørgslen og mindske utilfredshed på kort sigt. Makroøkonomisk kan det dog føre til større underskud, højere gæld og mere inflation, især hvis økonomien allerede er presset.",
+        "Det er ofte en realistisk løsning. Banken kan godt hjælpe, men kun hvis kunden tydeligt kan bære huset alene og stadig har luft til uforudsete udgifter.",
     },
     optionB: {
-      id: "responsible_line",
-      title: "Hold en ansvarlig linje",
-      text: "Bevar troværdigheden, men bliv upopulær på kort sigt.",
-      next: "trade_break",
+      id: "divorce_refinance_b",
+      title: "Nej, boligen er for tung alene",
+      text: "Banken vurderer, at huset ikke kan bæres af én indkomst.",
+      next: "energy_renovation",
       feedback:
-        "Dette valg prioriterer troværdighed og økonomisk holdbarhed. En ansvarlig linje kan styrke tilliden hos investorer og mindske risikoen for inflation og gældsproblemer, men den kan være svær at sælge politisk, hvis befolkningen ønsker hurtige forbedringer.",
+        "Det kan være den rigtige beslutning, hvis økonomien bliver for sårbar. Banken skal beskytte både kunde og kreditrisiko.",
     },
   },
 
-  bond_selloff: {
-    id: "bond_selloff",
-    title: "Obligationsmarkedet straffer jer",
+  overdraft_customer: {
+    id: "overdraft_customer",
+    title: "Kunde søger lån men har mange overtræk",
     description:
-      "Investorerne sælger ud. Jeres låneomkostninger stiger hurtigt, og budgettet bliver hårdt ramt.",
-    theme: "gældskrise",
-    macroQuestion:
-      "Hvordan bør staten reagere, når obligationsmarkedet mister tillid, og låneomkostningerne stiger hurtigt? Brug teori om gældskrise, renter og finanspolitik.",
+      "En kunde søger et mindre privatlån til uforudsete udgifter. Kunden har fast job og okay løn, men kontoen har haft mange overtræk de seneste seks måneder.",
+    theme: "privatlån",
+    customerGoal: "Kunden vil have et mindre lån hurtigt.",
+    bankQuestion:
+      "Bør banken sige ja, nej eller kræve mere dokumentation først? Forklar med fokus på betalingshistorik og kreditværdighed.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på hvad stigende obligationsrenter gør ved budgettet.",
-      "Hvordan kan tillid genoprettes?",
-      "Overvej forskellen på ekstern hjælp og interne nedskæringer.",
+      "Historik betyder meget i banken.",
+      "Fast job er ikke nok, hvis adfærden ser usikker ud.",
+      "Banken kan bede om budget og forklaring før den siger ja.",
     ],
     optionA: {
-      id: "imf_help",
-      title: "Søg international hjælp",
-      text: "Få støtte udefra, men mist noget politisk frihed.",
-      next: "trade_break",
+      id: "overdraft_customer_a",
+      title: "Nej, historikken er for svag",
+      text: "Banken vurderer, at adfærden på kontoen gør risikoen for høj.",
+      next: "small_business_growth",
       feedback:
-        "Dette valg kan give adgang til finansiering og genoprette tillid, fordi eksterne institutioner signalerer kontrol og reformvilje. Til gengæld følger der ofte krav om stram økonomisk politik, som kan dæmpe vækst og beskæftigelse på kort sigt.",
+        "Det er ofte den stærkeste bankbeslutning, fordi overtræk er et tydeligt faresignal. Banken skal se, at kunden først får styr på økonomien.",
     },
     optionB: {
-      id: "emergency_cuts",
-      title: "Lav akutte nedskæringer",
-      text: "Vis handlekraft, men risiko for recession og vrede.",
-      next: "bank_stress",
+      id: "overdraft_customer_b",
+      title: "Kun med fuldt budget og forklaring",
+      text: "Banken vil først se dokumentation og forbedret overblik.",
+      next: "first_home",
       feedback:
-        "Dette valg kan hurtigt forbedre budgetbalancen og sende et signal om disciplin. Makroøkonomisk kan akutte nedskæringer dog trække efterspørgslen ned og forværre recessionen, især hvis økonomien allerede er svag.",
+        "Det kan være rimeligt, hvis banken vil undersøge, om overtrækkene er midlertidige eller systematiske. Men banken skal være meget tydelig om kravene.",
     },
   },
 
-  energy_shock: {
-    id: "energy_shock",
-    title: "Energipriserne eksploderer",
+  missing_documents: {
+    id: "missing_documents",
+    title: "Høj løn, men dokumentationen mangler",
     description:
-      "En ny konflikt presser olie- og gaspriserne op. Inflation og usikkerhed blusser op igen.",
-    theme: "energi",
-    macroQuestion:
-      "Hvordan bør økonomisk politik reagere på et energichok, der både øger inflation og usikkerhed? Brug teori om udbudschok og stagflation.",
+      "En kunde med høj løn søger lån og virker overbevisende i mødet. Men der mangler lønsedler, kontoudtog og et fuldt budget. Kunden siger, at det kan sendes senere.",
+    theme: "dokumentation",
+    customerGoal: "Kunden vil have hurtigt ja på baggrund af mundtlige oplysninger.",
+    bankQuestion:
+      "Bør banken sige ja, nej eller vente? Forklar med fokus på dokumentation og bankens ansvar.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på forskellen mellem efterspørgselsinflation og udbudsinflation.",
-      "Hvordan påvirker dyrere energi virksomheder og husholdninger?",
-      "Overvej hvorfor dette kan føre til stagflation.",
+      "Banken må ikke kun bygge på det, kunden siger.",
+      "Dokumentation er en central del af kreditvurderingen.",
+      "Et hurtigt ja uden papir kan være en bankfaglig fejl.",
     ],
     optionA: {
-      id: "subsidize_energy",
-      title: "Giv energisubsidier",
-      text: "Skærm borgere og virksomheder, men det koster dyrt.",
-      next: "bank_stress",
+      id: "missing_documents_a",
+      title: "Vent, til dokumentationen er på plads",
+      text: "Banken kan ikke beslutte noget endeligt endnu.",
+      next: "first_home",
       feedback:
-        "Dette valg dæmper det direkte pres på husholdninger og virksomheder og kan begrænse fald i forbrug og produktion. Ulempen er, at subsidier er dyre for staten og kan svække incitamentet til at tilpasse energiforbruget.",
+        "Det er den stærkeste bankbeslutning. Banken skal have dokumentation på plads, før den kan vurdere indkomst, udgifter og risiko ordentligt.",
     },
     optionB: {
-      id: "let_prices_rise",
-      title: "Lad priserne stige",
-      text: "Beskyt budgettet, men skab social og politisk frustration.",
-      next: "climate_damage",
+      id: "missing_documents_b",
+      title: "Ja, fordi kunden virker stærk",
+      text: "Banken vælger at stole på indtrykket fra mødet.",
+      next: "overdraft_customer",
       feedback:
-        "Dette valg undgår store offentlige udgifter, men husholdninger og virksomheder må selv bære chokket. Det kan dæmpe statens underskud, men reducerer realindkomst, svækker efterspørgsel og kan øge social uro.",
+        "Det er en svag bankbeslutning. Et godt indtryk er ikke nok uden dokumentation. Banken skal kunne underbygge sin kreditvurdering.",
     },
   },
 
-  trade_break: {
-    id: "trade_break",
-    title: "Handelskonflikten breder sig",
+  small_business_growth: {
+    id: "small_business_growth",
+    title: "Mindre virksomhed vil udvide",
     description:
-      "Toldsatser og eksportrestriktioner skaber problemer i forsyningskæderne. Produktionen bliver dyrere.",
-    theme: "handel",
-    macroQuestion:
-      "Hvordan bør økonomien reagere, når handelskonflikter gør import dyrere og svækker produktionen? Brug teori om handel, inflation og vækst.",
+      "En mindre virksomhed vil låne 450.000 kr. til at udvide og ansætte én medarbejder mere. De seneste regnskaber er fornuftige, men markedet er lidt usikkert.",
+    theme: "virksomhed",
+    customerGoal: "Kunden vil vækste og udvide virksomheden.",
+    bankQuestion:
+      "Bør banken sige ja, nej eller ja med ekstra krav? Forklar med fokus på regnskab, risiko og robusthed.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på hvordan dyrere import påvirker virksomhedernes omkostninger.",
-      "Hvordan påvirker handel vækst og produktivitet?",
-      "Overvej forskellen på beskyttelse og åbenhed.",
+      "Regnskaber tæller positivt, men markedet betyder også noget.",
+      "Se på, om virksomheden kan tåle et dårligere år.",
+      "Banken kan godt være positiv og stadig kræve sikkerhed.",
     ],
     optionA: {
-      id: "protect_market",
-      title: "Beskyt hjemmemarkedet",
-      text: "Skærm egne virksomheder, men gør varer dyrere.",
-      next: "currency_slide",
+      id: "small_business_growth_a",
+      title: "Ja, men med krav om sikkerhed og budget",
+      text: "Banken vil støtte vækst, men ikke uden tydelige rammer.",
+      next: "final_case",
       feedback:
-        "Dette valg kan beskytte udvalgte virksomheder mod udenlandsk konkurrence på kort sigt. Makroøkonomisk kan mere protektionisme dog føre til højere priser, lavere effektivitet og svagere handel, hvilket kan dæmpe væksten.",
+        "Det er ofte en stærk beslutning. Banken kan støtte vækst, men vil typisk kræve mere dokumentation, sikkerhed eller tættere opfølgning, når markedet er usikkert.",
     },
     optionB: {
-      id: "new_allies",
-      title: "Søg nye handelsallierede",
-      text: "Byg nye relationer, men det tager tid og er usikkert.",
-      next: "climate_damage",
+      id: "small_business_growth_b",
+      title: "Nej, usikkerheden er for høj",
+      text: "Banken vil ikke bære risikoen ved udvidelsen nu.",
+      next: "final_case",
       feedback:
-        "Dette valg forsøger at mindske afhængigheden af konfliktområder og genopbygge handelsstrømme. På længere sigt kan det støtte vækst og forsyningssikkerhed, men tilpasningen tager tid, og gevinsten kommer ikke med det samme.",
+        "Det kan være en rimelig beslutning, hvis markedet er for usikkert eller robustheden for svag. Men banken bør forklare præcist, hvad der holder kunden tilbage.",
     },
   },
 
-  bank_stress: {
-    id: "bank_stress",
-    title: "Bankerne er under pres",
+  final_case: {
+    id: "final_case",
+    title: "Bankmødet med blandede signaler",
     description:
-      "Højere renter og svag vækst rammer finanssektoren. Nogle banker ser sårbare ud.",
-    theme: "banker",
-    macroQuestion:
-      "Hvordan bør staten reagere, når banker bliver sårbare under høj rente og svag vækst? Brug teori om finansiel stabilitet, kredit og recession.",
+      "En kunde søger lån og har både stærke og svage sider. Kunden har rimelig indkomst, lidt opsparing og mindre gæld, men budgettet er stramt, og noget dokumentation er stadig uklar.",
+    theme: "samlet vurdering",
+    customerGoal: "Kunden vil have banken til at tage stilling i et tvivlstilfælde.",
+    bankQuestion:
+      "Hvad er bankens bedste beslutning i et tvivlstilfælde, og hvorfor? Forklar med fokus på helhedsvurdering, risiko og dokumentation.",
     timeLimitSeconds: 480,
     hints: [
-      "Tænk på bankernes rolle i økonomien.",
-      "Hvordan påvirker bankkriser kreditgivning og investeringer?",
-      "Overvej moral hazard mod systemisk risiko.",
+      "Det handler ikke kun om ja eller nej, men om bankens begrundelse.",
+      "Banken skal kunne forklare sin risiko klart.",
+      "Se på helheden: indkomst, gæld, buffer og dokumentation.",
     ],
     optionA: {
-      id: "rescue_banks",
-      title: "Red bankerne",
-      text: "Skab ro nu, men vækker kritik af elitær politik.",
-      next: "currency_slide",
+      id: "final_case_a",
+      title: "Ja, men kun med meget klare betingelser",
+      text: "Banken siger ikke et frit ja, men stiller præcise krav.",
+      next: "first_home",
       feedback:
-        "Dette valg kan forhindre kreditkollaps og begrænse smitte til resten af økonomien. Hvis bankerne reddes, kan det støtte finansiel stabilitet og beskytte investeringer og beskæftigelse. Ulempen er risikoen for moral hazard og kritik af, at staten redder finanssektoren.",
+        "Det er ofte den bedste bankløsning i tvivlstilfælde. Banken kan være åben, men kun hvis krav og dokumentation er tydelige, og risikoen kan forklares.",
     },
     optionB: {
-      id: "let_fail",
-      title: "Lad svage banker falde",
-      text: "Undgå redningspakker, men risiko for større panik.",
-      next: "global_crisis",
+      id: "final_case_b",
+      title: "Nej, indtil sagen er stærkere",
+      text: "Banken vurderer, at tvivlen er for stor lige nu.",
+      next: "first_home",
       feedback:
-        "Dette valg undgår direkte statslig støtte og kan reducere moral hazard. Makroøkonomisk er risikoen dog, at banknedbrud spreder usikkerhed, reducerer kreditgivning og forværrer recessionen gennem lavere investeringer og forbrug.",
-    },
-  },
-
-  climate_damage: {
-    id: "climate_damage",
-    title: "Klimachok rammer økonomien",
-    description:
-      "Ekstremt vejr rammer høst, energi og transport. Forsyninger bliver ustabile.",
-    theme: "klima",
-    macroQuestion:
-      "Hvordan bør økonomisk politik reagere på klimachok, der rammer produktion, forsyninger og priser? Brug teori om udbudschok, produktivitet og langsigtet vækst.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på hvordan klimachok påvirker samlet udbud.",
-      "Hvordan adskiller akut hjælp sig fra langsigtede investeringer?",
-      "Overvej både kortsigtet stabilisering og langsigtet robusthed.",
-    ],
-    optionA: {
-      id: "acute_relief",
-      title: "Akut nødhjælp",
-      text: "Hjælp hurtigt, men det er dyrt og kortsigtet.",
-      next: "global_crisis",
-      feedback:
-        "Dette valg er relevant, hvis målet er at dæmpe de umiddelbare økonomiske tab og støtte husholdninger og virksomheder hurtigt. Ulempen er, at det ikke i sig selv øger økonomiens robusthed over for fremtidige chok og kan belaste budgettet.",
-    },
-    optionB: {
-      id: "green_transition",
-      title: "Invester i grøn omstilling",
-      text: "Styrk robustheden, men det tager tid før gevinsten kommer.",
-      next: "currency_slide",
-      feedback:
-        "Dette valg fokuserer på langsigtet udbudsside og produktivitet. Investeringer i grøn omstilling kan gøre økonomien mere modstandsdygtig og mindske sårbarhed over for energichok og klimaskader. Effekten kommer dog langsommere end ved akut støtte.",
-    },
-  },
-
-  currency_slide: {
-    id: "currency_slide",
-    title: "Valutaen svækkes",
-    description:
-      "Kapital flytter sig, og jeres valuta kommer under pres. Import bliver dyrere, og nervøsiteten stiger.",
-    theme: "valuta",
-    macroQuestion:
-      "Hvordan bør staten eller centralbanken reagere, når valutaen svækkes, og importpriserne stiger? Brug teori om valutakurser, kapitalbevægelser og inflation.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på hvorfor en svag valuta kan øge inflationen.",
-      "Hvordan påvirker renten kapitalbevægelser?",
-      "Overvej fordele og ulemper ved kapitalkontrol.",
-    ],
-    optionA: {
-      id: "raise_rates_again",
-      title: "Hæv renten igen",
-      text: "Forsvar valutaen, men det går ud over væksten.",
-      next: "global_crisis",
-      feedback:
-        "Dette valg følger klassisk pengepolitisk forsvar af valutaen. Højere rente kan tiltrække kapital og dæmpe valutafaldet. Samtidig gør det lån dyrere og reducerer efterspørgslen, hvilket kan svække vækst og beskæftigelse.",
-    },
-    optionB: {
-      id: "capital_controls",
-      title: "Indfør kontrol",
-      text: "Brems kapitalflugt, men skræm investorerne.",
-      next: "global_crisis",
-      feedback:
-        "Dette valg kan kortsigtet begrænse kapitalflugt og stabilisere valutaen. Ulempen er, at kapitalkontrol kan mindske investorernes tillid, svække fremtidige investeringer og gøre økonomien mindre attraktiv internationalt.",
-    },
-  },
-
-  global_crisis: {
-    id: "global_crisis",
-    title: "Global krise ryster systemet",
-    description:
-      "Flere chok rammer samtidig. Nu skal I vælge mellem dårlige løsninger og redde det, der kan reddes.",
-    theme: "global krise",
-    macroQuestion:
-      "Hvordan bør et land reagere, når flere globale chok rammer samtidig? Brug makroøkonomisk teori om international koordinering, stabilisering og krisehåndtering.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på forskellen mellem nationale og internationale løsninger.",
-      "Hvordan kan koordinering påvirke handel, renter og tillid?",
-      "Overvej hvad der sker, hvis alle kun tænker på sig selv.",
-    ],
-    optionA: {
-      id: "coordinate",
-      title: "Koordiner internationalt",
-      text: "Søg fælles løsninger, men giv afkald på noget kontrol.",
-      next: "housing_bubble",
-      feedback:
-        "Dette valg kan styrke krisehåndtering gennem fælles finanspolitik, handelssamarbejde og koordinering af pengepolitik. Makroøkonomisk kan det mindske usikkerhed og forhindre, at nationale løsninger forværrer den globale situation. Ulempen er mindre national handlefrihed.",
-    },
-    optionB: {
-      id: "national_first",
-      title: "Sæt nationen først",
-      text: "Beskyt jer selv først, men øg risikoen for nye konflikter.",
-      next: "housing_bubble",
-      feedback:
-        "Dette valg kan være politisk attraktivt og give hurtig kontrol over egne prioriteringer. Makroøkonomisk kan ensidige løsninger dog forværre handelsproblemer, kapitalflugt og internationale spændinger, hvilket kan gøre krisen dybere og længere.",
-    },
-  },
-
-  housing_bubble: {
-    id: "housing_bubble",
-    title: "Boligboblen vokser",
-    description:
-      "Boligpriserne stiger hurtigt, husholdninger låner mere, og bankerne øger udlån. Flere økonomer frygter en boble.",
-    theme: "banker",
-    macroQuestion:
-      "Hvordan bør politikere og centralbank reagere, når boligmarkedet bliver overophedet? Brug makroøkonomisk teori om renter, kredit, finansiel stabilitet og samlet efterspørgsel.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på finansiel stabilitet og privat gæld.",
-      "Overvej hvordan billig kredit påvirker boligpriserne.",
-      "Forklar forskellen på kortsigtet vækst og langsigtet risiko.",
-    ],
-    optionA: {
-      id: "tighten_housing_credit",
-      title: "Stram kredit og boligregler",
-      text: "Dæmp lånevæksten og mindske risikoen for en farlig boligboble.",
-      next: "supply_chain_freeze",
-      feedback:
-        "Dette valg prioriterer finansiel stabilitet. Strammere kreditkrav kan dæmpe spekulativ efterspørgsel og begrænse risikoen for et senere boligkrak. Ulempen er, at aktiviteten i byggeri og privatforbrug kan falde på kort sigt.",
-    },
-    optionB: {
-      id: "let_boom_continue",
-      title: "Lad markedet køre videre",
-      text: "Bevar høj aktivitet nu, men med risiko for større ubalancer senere.",
-      next: "tax_revolt",
-      feedback:
-        "Dette valg kan støtte vækst og beskæftigelse på kort sigt, fordi høj boligaktivitet øger efterspørgslen. Makroøkonomisk øger det dog risikoen for overophedning, høj gæld og større finansiel uro, hvis boblen brister.",
-    },
-  },
-
-  supply_chain_freeze: {
-    id: "supply_chain_freeze",
-    title: "Forsyningskæderne fryser til",
-    description:
-      "En ny global forstyrrelse betyder, at virksomheder mangler komponenter og råvarer. Produktion forsinkes, og priser presses op.",
-    theme: "handel",
-    macroQuestion:
-      "Hvordan bør økonomisk politik reagere, når udbudschok og forsyningsproblemer rammer samtidig? Brug teori om udbud, inflation og vækst.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Er problemet efterspørgsel eller udbud?",
-      "Hvordan kan et udbudschok skabe både inflation og lavere vækst?",
-      "Overvej forskellen på bred støtte og målrettet støtte.",
-    ],
-    optionA: {
-      id: "target_key_sectors",
-      title: "Målret hjælp til nøglesektorer",
-      text: "Hold kritisk produktion i gang uden at stimulere hele økonomien.",
-      next: "export_collapse",
-      feedback:
-        "Dette valg forsøger at afbøde et udbudschok uden at øge samlet efterspørgsel for meget. Målrettet støtte kan holde produktionen i gang i vigtige sektorer, men det presser budgettet og kan skabe krav om hjælp fra mange andre virksomheder.",
-    },
-    optionB: {
-      id: "accept_short_term_weakness",
-      title: "Accepter midlertidig svækkelse",
-      text: "Undgå brede indgreb og beskyt troværdigheden, men væksten bliver ramt.",
-      next: "food_price_spike",
-      feedback:
-        "Dette valg beskytter de offentlige finanser og undgår at forstærke inflationen gennem bred stimulans. Ulempen er, at virksomheder og husholdninger må bære mere af chokket selv, hvilket kan give lavere aktivitet og højere arbejdsløshed.",
-    },
-  },
-
-  tax_revolt: {
-    id: "tax_revolt",
-    title: "Skatteoprør vokser",
-    description:
-      "Regeringen møder massiv modstand mod nye skatter, samtidig med at budgetunderskuddet stiger.",
-    theme: "politik",
-    macroQuestion:
-      "Hvordan bør staten reagere, når behovet for budgetdisciplin kolliderer med politisk modstand? Brug teori om offentlige finanser, troværdighed og politisk økonomi.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på forholdet mellem legitimitet og troværdighed.",
-      "Hvordan reagerer markederne på politisk usikkerhed?",
-      "Overvej forskellen på kortsigtet ro og langsigtet holdbarhed.",
-    ],
-    optionA: {
-      id: "hold_budget_line",
-      title: "Hold fast i budgetdisciplin",
-      text: "Bevar tillid til de offentlige finanser trods modstand.",
-      next: "pension_gap",
-      feedback:
-        "Dette valg kan styrke troværdighed og dæmpe investorernes bekymring om gæld og underskud. Ulempen er, at politisk modstand og utilfredshed kan vokse, hvis vælgerne oplever hårde stramninger uden hurtige forbedringer.",
-    },
-    optionB: {
-      id: "delay_tightening",
-      title: "Udskyd stramningerne",
-      text: "Skab politisk ro nu, men risikoen vokser senere.",
-      next: "public_strike_wave",
-      feedback:
-        "Dette valg kan give kortsigtet politisk stabilitet og mindre modstand mod regeringen. Makroøkonomisk øger det dog risikoen for voksende underskud, højere gæld og svækket troværdighed på længere sigt.",
-    },
-  },
-
-  export_collapse: {
-    id: "export_collapse",
-    title: "Eksporten kollapser",
-    description:
-      "Vigtige eksportmarkeder svækkes pludseligt. Efterspørgslen efter landets varer falder kraftigt, og virksomheder varsler fyringer.",
-    theme: "handel",
-    macroQuestion:
-      "Hvordan bør økonomisk politik reagere, når eksportdrevet vækst falder hurtigt? Brug teori om efterspørgsel, konkurrenceevne og arbejdsmarked.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på hvordan lavere eksport påvirker BNP.",
-      "Hvordan hænger eksport, investeringer og jobs sammen?",
-      "Vurder både kortsigtet støtte og langsigtet konkurrenceevne.",
-    ],
-    optionA: {
-      id: "support_activity_and_jobs",
-      title: "Støt aktivitet og beskæftigelse",
-      text: "Brug midlertidige tiltag til at dæmpe faldet i økonomien.",
-      next: "tech_boom",
-      feedback:
-        "Dette valg kan dæmpe ledighed og fald i BNP, fordi staten forsøger at holde samlet efterspørgsel oppe. Ulempen er, at det kan øge underskuddet og gøre økonomien mere sårbar, hvis støtten bliver langvarig.",
-    },
-    optionB: {
-      id: "focus_competitiveness",
-      title: "Fokusér på konkurrenceevne",
-      text: "Hold igen nu og styrk økonomiens robusthed på længere sigt.",
-      next: "currency_attack",
-      feedback:
-        "Dette valg prioriterer økonomiens tilpasning og langsigtede styrke. Det kan forbedre konkurrenceevnen over tid, men på kort sigt kan lavere efterspørgsel og svag eksport føre til højere arbejdsløshed og lavere vækst.",
-    },
-  },
-
-  pension_gap: {
-    id: "pension_gap",
-    title: "Pensionsgabet vokser",
-    description:
-      "En aldrende befolkning lægger pres på pensioner og offentlige udgifter. Arbejdsstyrken vokser ikke nok til at bære byrden.",
-    theme: "gæld",
-    macroQuestion:
-      "Hvordan bør politik reagere på en langsigtet demografisk udfordring med store budgetkonsekvenser? Brug teori om arbejdsudbud, offentlige finanser og holdbarhed.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk langsigtet og strukturelt.",
-      "Hvordan påvirkes arbejdsudbud, vækst og budget?",
-      "Overvej forskellen på reform nu og udsættelse.",
-    ],
-    optionA: {
-      id: "reform_now",
-      title: "Gennemfør reformer nu",
-      text: "Stram systemet tidligt for at sikre holdbarhed.",
-      next: "green_transition_shock",
-      feedback:
-        "Dette valg styrker holdbarheden i de offentlige finanser og kan øge tilliden til økonomisk politik. Ulempen er, at reformer ofte er politisk upopulære og kan skabe modstand, hvis byrderne mærkes hurtigt.",
-    },
-    optionB: {
-      id: "postpone_changes",
-      title: "Udskyd ændringerne",
-      text: "Skån vælgere nu og vent med de hårde beslutninger.",
-      next: "food_price_spike",
-      feedback:
-        "Dette valg undgår konflikt på kort sigt, men øger risikoen for større problemer senere. Hvis reformer udskydes for længe, kan gæld og udgifter vokse hurtigere end økonomiens bæreevne.",
-    },
-  },
-
-  food_price_spike: {
-    id: "food_price_spike",
-    title: "Fødevarepriserne eksploderer",
-    description:
-      "Dårlige høster og højere transportomkostninger driver fødevarepriserne hurtigt op. Husholdningerne mærker presset med det samme.",
-    theme: "inflation",
-    macroQuestion:
-      "Hvordan bør staten reagere, når et nødvendighedsgode stiger kraftigt i pris og rammer skævt socialt? Brug teori om inflation, realindkomst og fordelingsvirkninger.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på inflation og husholdningernes købekraft.",
-      "Hvordan adskiller målrettet hjælp sig fra bred støtte?",
-      "Overvej konsekvenserne for budget og efterspørgsel.",
-    ],
-    optionA: {
-      id: "targeted_relief",
-      title: "Giv målrettet hjælp",
-      text: "Støt de mest pressede husholdninger uden at stimulere hele økonomien.",
-      next: "public_strike_wave",
-      feedback:
-        "Dette valg kan dæmpe de sociale konsekvenser af stigende priser og beskytte de mest udsatte husholdninger. Makroøkonomisk er målrettet hjælp ofte mindre inflationsskabende end brede tiltag, men den belaster stadig de offentlige finanser.",
-    },
-    optionB: {
-      id: "protect_budget",
-      title: "Beskyt budgettet",
-      text: "Undgå ny støtte, men risikér større utilfredshed og svagere forbrug.",
-      next: "tech_boom",
-      feedback:
-        "Dette valg undgår nye offentlige udgifter og beskytter budgetbalancen. Til gengæld falder husholdningernes reale købekraft mere, hvilket kan svække privatforbruget og øge den sociale utilfredshed.",
-    },
-  },
-
-  tech_boom: {
-    id: "tech_boom",
-    title: "Teknologiboom skaber overophedning",
-    description:
-      "Store investeringer i ny teknologi løfter væksten kraftigt, men lønninger og aktivpriser stiger også hurtigt.",
-    theme: "arbejdsmarked",
-    macroQuestion:
-      "Hvordan bør økonomisk politik reagere, når høj vækst samtidig skaber risiko for overophedning? Brug teori om vækst, inflation og produktionsgab.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på forskellen mellem sund vækst og overophedning.",
-      "Hvordan hænger høj aktivitet sammen med lønpres og inflation?",
-      "Overvej hvad der sker, hvis økonomien ikke køles ned i tide.",
-    ],
-    optionA: {
-      id: "cool_economy",
-      title: "Køl økonomien lidt ned",
-      text: "Dæmp presset for at undgå senere inflation og ubalancer.",
-      next: "currency_attack",
-      feedback:
-        "Dette valg kan være fornuftigt, hvis økonomien bevæger sig over sit bæredygtige niveau. En nedkøling kan begrænse lønpres, aktivbobler og inflation, men den kan også dæmpe investeringer og beskæftigelse mere end ønsket.",
-    },
-    optionB: {
-      id: "ride_the_boom",
-      title: "Lad væksten fortsætte",
-      text: "Udnyt momentum og accepter højere risiko.",
-      next: "green_transition_shock",
-      feedback:
-        "Dette valg kan holde væksten og optimismen oppe på kort sigt. Makroøkonomisk øger det dog risikoen for overophedning, højere inflation, lønpres og større korrektion senere.",
-    },
-  },
-
-  currency_attack: {
-    id: "currency_attack",
-    title: "Valutaen angribes",
-    description:
-      "Internationale investorer sælger landets valuta, og presset på centralbanken vokser time for time.",
-    theme: "renter",
-    macroQuestion:
-      "Hvordan bør myndigheder reagere, når valuta og tillid er under direkte pres? Brug teori om renter, kapitalbevægelser og troværdighed.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på hvorfor investorer flytter kapital.",
-      "Hvordan påvirker renten valutakursen?",
-      "Overvej hvad det koster at forsvare en valuta.",
-    ],
-    optionA: {
-      id: "defend_currency",
-      title: "Forsvar valutaen hårdt",
-      text: "Brug klare signaler og stram linje for at genskabe tillid.",
-      next: "public_strike_wave",
-      feedback:
-        "Dette valg kan beskytte valutaen og styrke troværdigheden, fordi højere renter eller fast styring kan bremse kapitalflugt. Ulempen er, at stram politik kan svække vækst, kredit og beskæftigelse.",
-    },
-    optionB: {
-      id: "accept_weaker_currency",
-      title: "Accepter svækkelsen",
-      text: "Undgå hård opstramning, men tag risikoen for mere inflation.",
-      next: "green_transition_shock",
-      feedback:
-        "Dette valg kan skåne aktiviteten på kort sigt, fordi økonomien ikke mødes af hård opstramning. Til gengæld kan en svagere valuta gøre import dyrere, løfte inflationen og øge usikkerheden på markederne.",
-    },
-  },
-
-  public_strike_wave: {
-    id: "public_strike_wave",
-    title: "Strejkebølge i den offentlige sektor",
-    description:
-      "Store grupper i den offentlige sektor strejker for højere løn. Presset på både budget og arbejdsmarked vokser.",
-    theme: "arbejdsmarked",
-    macroQuestion:
-      "Hvordan bør staten reagere, når lønpres, serviceproblemer og budgethensyn kolliderer? Brug teori om løndannelse, inflation og offentlige finanser.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på lønpres og andenrunde-effekter.",
-      "Hvordan påvirker højere offentlige lønninger budgettet?",
-      "Overvej forskellen mellem ro nu og pres senere.",
-    ],
-    optionA: {
-      id: "costly_deal_now",
-      title: "Indgå dyr aftale nu",
-      text: "Skab ro hurtigt, men løft udgifterne markant.",
-      next: "green_transition_shock",
-      feedback:
-        "Dette valg kan skabe hurtig ro og genoprette den offentlige service. Makroøkonomisk kan det dog øge lønpres, offentlige udgifter og forventninger om nye lønstigninger i resten af økonomien.",
-    },
-    optionB: {
-      id: "tight_line_strikes",
-      title: "Hold en stram linje",
-      text: "Forsvar budgettet og undgå en dyr præcedens.",
-      next: "intro_inflation",
-      feedback:
-        "Dette valg styrker budgetdisciplin og kan dæmpe risikoen for bredere løn- og inflationspres. Ulempen er, at konflikten kan trække ud og forværre både utilfredshed og tab af offentlig service.",
-    },
-  },
-
-  green_transition_shock: {
-    id: "green_transition_shock",
-    title: "Grøn omstilling giver prischok",
-    description:
-      "Nye klimaafgifter og hurtig omstilling løfter energiomkostningerne på kort sigt. Samtidig er der behov for store investeringer.",
-    theme: "energi",
-    macroQuestion:
-      "Hvordan bør politik balancere grøn omstilling, inflation, konkurrenceevne og social accept? Brug teori om udbudschok, investeringer og langsigtet vækst.",
-    timeLimitSeconds: 480,
-    hints: [
-      "Tænk på forskellen mellem kortsigtede omkostninger og langsigtede gevinster.",
-      "Hvordan påvirker energiomkostninger inflation og konkurrenceevne?",
-      "Overvej om målrettet kompensation kan være en løsning.",
-    ],
-    optionA: {
-      id: "green_support_path",
-      title: "Hold fast i omstillingen med støtte",
-      text: "Bevar kursen, men hjælp udsatte grupper og virksomheder målrettet.",
-      next: "intro_inflation",
-      feedback:
-        "Dette valg forsøger at balancere grøn omstilling og social stabilitet. Målrettet støtte kan gøre overgangen mere politisk holdbar, men det øger de offentlige udgifter og kræver præcis styring for ikke at presse inflationen yderligere.",
-    },
-    optionB: {
-      id: "slow_transition",
-      title: "Sænk tempoet i omstillingen",
-      text: "Dæmp prispres nu, men udskyd investeringer og langsigtede gevinster.",
-      next: "housing_bubble",
-      feedback:
-        "Dette valg kan lette presset på virksomheder og husholdninger på kort sigt, fordi omkostningsstigningerne dæmpes. Makroøkonomisk kan det dog forsinke produktive investeringer og gøre økonomien mere sårbar over for fremtidige energi- og klimachok.",
+        "Det kan være rigtigt, hvis usikkerheden samlet er for høj. Det vigtige er, at banken præcist forklarer, hvorfor kunden ikke er klar endnu.",
     },
   },
 };
